@@ -1,0 +1,4 @@
+NAME,		COMMAND,														DATETIME
+
+tqdm,		conda install -c conda-forge tqdm,	1/07/2020:12:28
+torch,	conda install -c pytorch pytorch,		1/07/2020:14:50
