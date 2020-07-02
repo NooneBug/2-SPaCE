@@ -11,13 +11,7 @@ classes_dict = {
   'MultiTypeEmbedding': MultiEmbeddingManager
 }
 
-
-
-def get_parsed_datasets():
-  config = configparser.ConfigParser()
-
-  config.read("parsers/config.ini")
-
+def get_parsed_datasets(config):
 
   dataset = parse_dataset(path = config[WORD_EMBEDDING_CONFIG]["DATASET_PATH"])
 

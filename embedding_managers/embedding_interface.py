@@ -1,5 +1,5 @@
 from abc import ABC
-from models.lookup_networks import LookupNetwork
+from models.lookup_models.lookup_networks import LookupNetwork
 
 class Embedding(ABC):
 

@@ -1,6 +1,6 @@
 from embedding_managers.embedding_interface import Embedding
 from common.utils import load_data_with_pickle
-from models.lookup_networks import LookupNetwork
+from models.lookup_models.lookup_networks import LookupNetwork
 
 class Type2VecEmbeddingManager(Embedding):
   def load_from_file(self, path):
