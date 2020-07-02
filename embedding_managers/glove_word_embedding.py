@@ -1,12 +1,23 @@
 from embedding_managers.embedding_interface import Embedding
 from tqdm import tqdm
 import torch
+from models.lookup_networks import LookupNetwork
 
 class glove_word_embedding(Embedding):
 
   def __init__(self):
     self.token2vec = {}
     self.token2idx_dict = {}
+
+  def generate_lookup_network(self):
+    lookup_net = LookupNetwork(self)
+    return lookup_net
+
+  def get_embeddings_number(self):
+    return len(self.token2vec)
+
+  def get_vector_dim(self):
+	  return len(list(self.token2vec.values())[0])
 
   def load_from_file(self, path):
     print("Start loading pretrained word vecs")

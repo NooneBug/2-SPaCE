@@ -7,10 +7,13 @@ WORD_EMBEDDING_CONFIG = "GLOVE"
 TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
 
 classes_dict = {
-  'GLOVE' : glove_word_embedding
+  'GLOVE' : glove_word_embedding,
+  'MultiTypeEmbedding': MultiEmbeddingManager
 }
 
-def main():
+
+
+def get_parsed_datasets():
   config = configparser.ConfigParser()
 
   config.read("parsers/config.ini")
@@ -21,6 +24,8 @@ def main():
   word_embeddings, type_embeddings = obtain_embeddings(config=config)
 
   encoded_datasets = get_encoded_dataset(dataset, word_embeddings, type_embeddings, config)
+
+  return dataset, word_embeddings, type_embeddings, encoded_datasets
 
 
 def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
@@ -61,13 +66,14 @@ def obtain_embeddings(config):
 
   word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
   
-
-  if TYPE_EMBEDDING_CONFIG == "MultiTypeEmbedding":
-
-    type_embeddings = retrieve_multi_type_embeddings(config)
-    
+  if int(config['DEFAULT']['TYPE_SPACE_NUMBER']) >= 1:
+    if TYPE_EMBEDDING_CONFIG == "MultiTypeEmbedding":
+      type_embeddings = retrieve_multi_type_embeddings(config)
+      
+    else:
+      raise Exception('you modified the TYPE_EMBEDDING_CONFIG name without take care of its usage; \n please, check the type_embeddings loading routine...')
   else:
-    raise Exception('you modified the TYPE_EMBEDDING_CONFIG name without take care of its usage; \n please, check the type_embeddings loading routine...')
+    raise Exception('please, setup a routine for single-output configurations (now those are managed by MultiTypeEmbedding class')
 
   # for k, v in type_embeddings.items():
   #   print('-------------------------------------')
@@ -81,14 +87,17 @@ def retrieve_multi_type_embeddings(config):
 
   embedding_config_names = config[TYPE_EMBEDDING_CONFIG]["EMBEDDING_CONFIGS"].split(' ')
 
+  if len(embedding_config_names) != int(config['DEFAULT']['TYPE_SPACE_NUMBER']):
+    raise Exception('ERROR: the number of type space(s) and their names/configuration in config.ini does not match')
+
   names = [config[n]["NAME"] for n in embedding_config_names]
   paths = [config[n]["PATH"] for n in embedding_config_names]
   classes = [config[n]["EMBEDDING_CLASS_NAME"] for n in embedding_config_names]
 
-  type_embeddings = MultiEmbeddingManager(spaces_number=len(names), 
-                                          names=names,
-                                          classes = get_classes_dict(names, classes))
-  type_embeddings.load_from_files(get_paths_dict(names, paths))
+  type_embeddings = classes_dict[TYPE_EMBEDDING_CONFIG](spaces_number=len(names), 
+                                                        names=names,
+                                                        classes = get_classes_dict(names, classes))
+  type_embeddings.load_from_file(get_paths_dict(names, paths))
 
   return type_embeddings
 

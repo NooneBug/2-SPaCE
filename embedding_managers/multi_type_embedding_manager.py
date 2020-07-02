@@ -28,7 +28,7 @@ class MultiEmbeddingManager(Embedding):
 				embedding names: {}; given names: {}'.format(list(self.embeddings.keys()), list(var.keys())))
 
 
-	def load_from_files(self, paths):
+	def load_from_file(self, paths):
 		''' variable "paths" is a dict with previous embedding names and paths '''
 		if type(paths) != dict:
 			raise Exception('variable paths needs to be a dict')
@@ -70,3 +70,6 @@ class MultiEmbeddingManager(Embedding):
 	def token2idx(self, token):
 		return self.token2idx_dict[token]
 
+
+	def generate_lookup_network(self):
+		return {name: model.generate_lookup_network() for name, model in self.embeddings.items()}
