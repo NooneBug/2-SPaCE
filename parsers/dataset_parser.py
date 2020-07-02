@@ -14,6 +14,29 @@ def main():
 
   dataset = parse_dataset(path = config[WORD_EMBEDDING_CONFIG]["DATASET_PATH"])
 
+  word_embeddings, type_embeddings = obtain_embeddings(config=config)
+
+  encode_dataset(dataset, word_embeddings, type_embeddings, config)
+
+
+def encode_dataset(dataset, word_embeddings, type_embeddings, config):
+  config_default_dict = config['DEFAULT']
+  encode_dataset = {}
+  print(word_embeddings.token2idx_dict)
+  for d in dataset:
+    encoded_entry = {}
+    print('------------------------------')
+    print('original entry: {}'.format(d))
+    values = [config_default_dict[value] for value in ['LEFT_CONTEXT', 'RIGHT_CONTEXT', 'MENTION']]
+    for token_list, value in [(d[v], v) for v in values]:
+      if type(token_list) != list:
+        token_list = token_list.split(' ')
+      print(token_list)
+      encoded_entry[value] = [word_embeddings.token2idx(token) for token in token_list]
+
+    print('encoded_entry: {}'.format(encoded_entry))
+
+def obtain_embeddings(config):
   word_embeddings = glove_word_embedding()
 
   word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
@@ -25,10 +48,13 @@ def main():
   else:
     raise Exception('you modified the TYPE_EMBEDDING_CONFIG name without take care of its usage; \n please, check the type_embeddings loading routine...')
 
+  # for k, v in type_embeddings.items():
+  #   print('-------------------------------------')
+  #   print('{}:\n'.format(k))
+  #   for k2, v2, in v.embeddings.items():
+  #     print('\t{}:\t{}\n'.format(k2, v2))
 
-  print(type_embeddings)
-
-
+  return word_embeddings, type_embeddings
 
 def retrieve_multi_type_embeddings(config):
 

@@ -1,6 +1,8 @@
 from embedding_managers.embedding_interface import Embedding
 from embedding_managers.nickel_embedding import NickelEmbedding
+from embedding_managers.type2vec_embedding import Type2VecEmbeddingManager
 
+import torch
 
 
 class MultiEmbeddingManager():
@@ -16,7 +18,8 @@ class MultiEmbeddingManager():
 
 	def setup_classes_factory(self):
 		self.classes_dict = {
-			"NickelEmbedding" : NickelEmbedding
+			"NickelEmbedding" : NickelEmbedding,
+			"Type2VecEmbedding": Type2VecEmbeddingManager
 		}
 
 	def check_names(self, var):
@@ -34,10 +37,19 @@ class MultiEmbeddingManager():
 		
 		names = list(self.embeddings.keys())
 
+		print(f"retrieving these configurations: {', '.join(names[:-1])} and {names[-1]}")
+
 		for name in names:
 			# initialize with factory
 			self.embeddings[name] = self.classes_dict[self.classes[name]]()
 			# load embeddings
 			self.embeddings[name].load_from_file(paths[name])
+			
+		self.torchify(names)
 
-		return self.embeddings	
+		return self.embeddings
+
+	def torchify(self, names):
+		for name in names:
+			e = self.embeddings[name].embeddings 
+			self.embeddings[name].embeddings = {k: torch.tensor(v) if not torch.is_tensor(v) else v for k, v in e.items()}

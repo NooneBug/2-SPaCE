@@ -24,7 +24,7 @@ class glove_word_embedding(Embedding):
     self.token2vec[token] = vector
     if token not in self.token2idx_dict:
       try:
-        self.token2idx_dict[token] = max(self.token2idx_dict.values() + 1)
+        self.token2idx_dict[token] = max(self.token2idx_dict.values()) + 1
       except:
         self.token2idx_dict[token] = 0
   

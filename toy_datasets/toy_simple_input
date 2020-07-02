@@ -7,7 +7,7 @@
             },
             {
                 "left_context_tokens": ["I", "want", "to", "live", "in"],
-                "mention_span": "New York", 
+                "mention": "New York", 
                 "right_context_tokens": [], 
                 "labels": ["location", "city"] 
             }]
