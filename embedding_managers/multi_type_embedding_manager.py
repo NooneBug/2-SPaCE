@@ -5,7 +5,7 @@ from embedding_managers.type2vec_embedding import Type2VecEmbeddingManager
 import torch
 
 
-class MultiEmbeddingManager():
+class MultiEmbeddingManager(Embedding):
 
 	def __init__(self, spaces_number, names, classes):	
 		self.embeddings = {n: {} for n in names}
@@ -36,8 +36,9 @@ class MultiEmbeddingManager():
 		self.check_names(var = paths)
 		
 		names = list(self.embeddings.keys())
-
-		print(f"retrieving these configurations: {', '.join(names[:-1])} and {names[-1]}")
+		print('-----------------------------------------------------------------------------------')
+		print(f" Retrieving the following configuration(s): {', '.join(names[:-1])} and {names[-1]}")
+		print('-----------------------------------------------------------------------------------')
 
 		for name in names:
 			# initialize with factory
@@ -47,9 +48,25 @@ class MultiEmbeddingManager():
 			
 		self.torchify(names)
 
+		self.generate_token2idx_dict()
+
 		return self.embeddings
 
 	def torchify(self, names):
 		for name in names:
 			e = self.embeddings[name].embeddings 
 			self.embeddings[name].embeddings = {k: torch.tensor(v) if not torch.is_tensor(v) else v for k, v in e.items()}
+	
+	def generate_token2idx_dict(self):
+		self.token2idx_dict = {}
+		tokens = set()
+		for k, v in self.embeddings.items():
+			tokens = tokens.union(v.embeddings.keys())
+		
+		
+		for i, t in enumerate(tokens):
+			self.token2idx_dict[t] = i
+
+	def token2idx(self, token):
+		return self.token2idx_dict[token]
+

@@ -6,6 +6,10 @@ from embedding_managers.multi_type_embedding_manager import MultiEmbeddingManage
 WORD_EMBEDDING_CONFIG = "GLOVE"
 TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
 
+classes_dict = {
+  'GLOVE' : glove_word_embedding
+}
+
 def main():
   config = configparser.ConfigParser()
 
@@ -16,30 +20,47 @@ def main():
 
   word_embeddings, type_embeddings = obtain_embeddings(config=config)
 
-  encode_dataset(dataset, word_embeddings, type_embeddings, config)
+  encoded_datasets = get_encoded_dataset(dataset, word_embeddings, type_embeddings, config)
 
 
-def encode_dataset(dataset, word_embeddings, type_embeddings, config):
+def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
   config_default_dict = config['DEFAULT']
-  encode_dataset = {}
-  print(word_embeddings.token2idx_dict)
+  encoded_dataset = []
+  # print(word_embeddings.token2idx_dict)
   for d in dataset:
     encoded_entry = {}
-    print('------------------------------')
-    print('original entry: {}'.format(d))
-    values = [config_default_dict[value] for value in ['LEFT_CONTEXT', 'RIGHT_CONTEXT', 'MENTION']]
-    for token_list, value in [(d[v], v) for v in values]:
+    # print('------------------------------')
+    # print('original entry: {}'.format(d))
+    fields = [config_default_dict[value] for value in ['LEFT_CONTEXT', 'RIGHT_CONTEXT', 'MENTION']]
+    for token_list, field in [(d[f], f) for f in fields]:
       if type(token_list) != list:
         token_list = token_list.split(' ')
-      print(token_list)
-      encoded_entry[value] = [word_embeddings.token2idx(token) for token in token_list]
+      # print(token_list)
+      encoded_entry[field] = [word_embeddings.token2idx(token) for token in token_list]
 
-    print('encoded_entry: {}'.format(encoded_entry))
 
+    labels_fields = [config_default_dict[v] for v in ['LABELS']]
+
+    for labels, field in [(d[f], f) for f in labels_fields]:
+      # print(labels)
+
+      encoded_entry[field] = [type_embeddings.token2idx(l) for l in labels]
+
+    # print('encoded_entry: {}'.format(encoded_entry))
+
+    encoded_dataset.append(encoded_entry)
+  # print(encoded_dataset)
+
+  return encoded_dataset
 def obtain_embeddings(config):
-  word_embeddings = glove_word_embedding()
+  print('-----------------------------------------------------------------------------------')
+  print(' Loading word embeddings')
+  print('-----------------------------------------------------------------------------------')
+  
+  word_embeddings = classes_dict[WORD_EMBEDDING_CONFIG]()
 
   word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
+  
 
   if TYPE_EMBEDDING_CONFIG == "MultiTypeEmbedding":
 
@@ -69,7 +90,7 @@ def retrieve_multi_type_embeddings(config):
                                           classes = get_classes_dict(names, classes))
   type_embeddings.load_from_files(get_paths_dict(names, paths))
 
-  return type_embeddings.embeddings
+  return type_embeddings
 
 
 def get_classes_dict(names, classes):
