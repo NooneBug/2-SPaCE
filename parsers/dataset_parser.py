@@ -2,6 +2,7 @@ import configparser
 import json
 from embedding_managers.glove_word_embedding import glove_word_embedding
 from embedding_managers.multi_type_embedding_manager import MultiEmbeddingManager
+from parsers.ShimaokaParser import ShimaokaParser
 
 WORD_EMBEDDING_CONFIG = "GLOVE"
 TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
@@ -11,15 +12,25 @@ classes_dict = {
   'MultiTypeEmbedding': MultiEmbeddingManager
 }
 
+dataset_parsers_dict = {
+  'SHIMAOKA' : ShimaokaParser
+}
+
+
+
 def get_parsed_datasets(config):
 
   dataset = parse_dataset(path = config[WORD_EMBEDDING_CONFIG]["DATASET_PATH"])
 
   word_embeddings, type_embeddings = obtain_embeddings(config=config)
 
-  encoded_datasets = get_encoded_dataset(dataset, word_embeddings, type_embeddings, config)
+  encoded_dataset = get_encoded_dataset(dataset, word_embeddings, type_embeddings, config)
 
-  return dataset, word_embeddings, type_embeddings, encoded_datasets
+  specific_dataset_parser = dataset_parsers_dict[config['2-SPACE MODULES CONFIGS']['WORD_MANIPULATION_MODULE']](config)
+
+  configuration_dataset = specific_dataset_parser.cast_dataset(dataset, encoded_dataset, config)
+
+  return configuration_dataset, word_embeddings, type_embeddings, encoded_dataset, dataset
 
 
 def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
@@ -50,7 +61,28 @@ def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
     encoded_dataset.append(encoded_entry)
   # print(encoded_dataset)
 
+  if config.has_option(section = TYPE_EMBEDDING_CONFIG, 
+                        option = 'PADDING_INDEX'):
+    encoded_dataset = uniform_labels_number(encoded_dataset, int(config[TYPE_EMBEDDING_CONFIG]['PADDING_INDEX']))
+
   return encoded_dataset
+
+
+def uniform_labels_number(encoded_dataset, padding_index):
+
+  labels = [l['labels'] for l in encoded_dataset]
+
+  max_labels = max([len(l) for l in labels])
+
+
+  for i, l in enumerate(encoded_dataset):
+    uniformed_entry = l['labels']
+    while len(uniformed_entry) < max_labels:
+      uniformed_entry.append(padding_index)
+    encoded_dataset[i]['labels'] = uniformed_entry
+  
+  return encoded_dataset
+
 def obtain_embeddings(config):
   print('-----------------------------------------------------------------------------------')
   print(' Loading word embeddings')

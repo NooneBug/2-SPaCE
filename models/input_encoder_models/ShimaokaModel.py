@@ -1,4 +1,5 @@
 from torch import nn
+from models.lookup_models import lookup_networks
 
 
 class ShimaokaMentionAndContextEncoder():
@@ -20,26 +21,36 @@ class ShimaokaMentionAndContextEncoder():
     self.cast_param('mention_dropout_size', float)
     self.cast_param('context_dropout', float)
 
-
   def cast_param(self, key, cast_type):
-    self.conf[key] = cast_type(self.conf[key])    
+    self.conf[key] = cast_type(self.conf[key])
+  
+  def forward(self, input):
+    contexts, positions, context_len = input[0], input[1], input[2]
+    mentions, mention_chars = input[3], input[4]
+    type_indexes = input[5]
+
+    mention_vec = self.mention_encoder(mentions, mention_chars, self.word_lut)
+    context_vec, attn = self.context_encoder(contexts, positions, context_len, self.word_lut)
+
+    input_vec = torch.cat((mention_vec, context_vec), dim=1)
+
 
 class CharEncoder(nn.Module):
     
     def __init__(self, conf):
     
-      CHARS = ['!', '"', '#', '$', '%', '&', "'", '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', \
+      self.CHARS = ['!', '"', '#', '$', '%', '&', "'", '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', \
       '9', ':', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',\
       'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd',\
       'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',\
       '{', '}', '~', '·', 'Ì', 'Û', 'à', 'ò', 'ö', '˙', 'ِ', '’', '→', '■', '□', '●', '【', '】', 'の', '・', '一', '（',\
-      '）', '＊', '：', '￥']
+      '）', '＊', '：', '￥', ' ']
 
 
       super(CharEncoder, self).__init__()
       conv_dim_input = 100
       filters = 5
-      self.char_W = nn.Embedding(len(CHARS), conv_dim_input, padding_idx=0)
+      self.char_W = nn.Embedding(len(self.CHARS), conv_dim_input, padding_idx=0)
       self.conv1d = nn.Conv1d(conv_dim_input, conf['char_emb_size'], filters)  # input, output, filter_number
 
     def forward(self, span_chars):

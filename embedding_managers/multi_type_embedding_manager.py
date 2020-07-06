@@ -63,13 +63,11 @@ class MultiEmbeddingManager(Embedding):
 		for k, v in self.embeddings.items():
 			tokens = tokens.union(v.embeddings.keys())
 		
-		
 		for i, t in enumerate(tokens):
 			self.token2idx_dict[t] = i
 
 	def token2idx(self, token):
 		return self.token2idx_dict[token]
-
 
 	def generate_lookup_network(self):
 		return {name: model.generate_lookup_network() for name, model in self.embeddings.items()}

@@ -9,15 +9,26 @@ class glove_word_embedding(Embedding):
     self.token2vec = {}
     self.token2idx_dict = {}
 
-  def generate_lookup_network(self):
-    lookup_net = LookupNetwork(self)
+  def generate_lookup_network(self, padding_idx):
+    if padding_idx:
+      lookup_net = LookupNetwork(self, padding_idx=padding_idx)
+    else:
+      lookup_net = LookupNetwork(self)
+
+
+    weights = [self.idx2vec(id).numpy() for id in range(self.get_embeddings_number())]
+
+    weights = torch.tensor(weights)
+
+    lookup_net.model.weight.data.copy_(weights)
+
     return lookup_net
 
   def get_embeddings_number(self):
     return len(self.token2vec)
 
   def get_vector_dim(self):
-	  return len(list(self.token2vec.values())[0])
+    return len(list(self.token2vec.values())[0])
 
   def load_from_file(self, path):
     print("Start loading pretrained word vecs")
@@ -56,4 +67,7 @@ class glove_word_embedding(Embedding):
 
   def idx2token(self, id):
     return self.id2token_dict[id]
+
+  def idx2vec(self, id):
+    return self.token2vec[self.idx2token(id)]
 
