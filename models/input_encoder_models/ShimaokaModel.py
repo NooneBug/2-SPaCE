@@ -1,10 +1,12 @@
 from torch import nn
 from models.lookup_models import lookup_networks
+from torch.nn import Module
 
-
-class ShimaokaMentionAndContextEncoder():
+class ShimaokaMentionAndContextEncoder(Module):
 
   def __init__(self, config):
+    super().__init__()
+    
     self.nametag = 'SHIMAOKA'
     self.conf = dict(config[self.nametag])
     self.cast_params()
