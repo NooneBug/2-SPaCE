@@ -1,9 +1,12 @@
 from dataloaders.ShimaokaDataLoader import ShimaokaDataset
 from models.input_encoder_models.ShimaokaModel import ShimaokaMentionAndContextEncoder
 from models.CommonNetwork import CommonNetwork
+from models.projectors.multiProjectorHandler import MultiProjectorHandler 
+from models.projectors.NickelProjector import NickelProjector
 from torch.nn import Module
 from torch.utils.data import DataLoader
 import torch
+
 
 
 class ComposedNetwork(Module):
@@ -23,6 +26,7 @@ class ComposedNetwork(Module):
 
     self.common_module = self.get_network_class('DEEP_NETWORK')(config)
 
+    self.projectors = self.get_network_class('PROJECTORS')(config)
   
   def get_network_class(self, config_key):
     return self.network_factory[self.config[self.config['2-SPACE MODULES CONFIGS'][config_key]]['CLASS']]
@@ -30,7 +34,8 @@ class ComposedNetwork(Module):
   def define_factory(self):
     self.network_factory = {
       "ShimaokaModel" : ShimaokaMentionAndContextEncoder,
-      "CommonNetwork": CommonNetwork
+      "CommonNetwork": CommonNetwork,
+      'MultiProjectorHandler': MultiProjectorHandler
     }
     self.dataLoader_factory = {
       "ShimaokaDataLoader": ShimaokaDataset
@@ -49,7 +54,6 @@ class ComposedNetwork(Module):
     words_batch = self.word_lookup(contexts)
 
     mention_vec = self.word_network.mention_encoder(mentions, mention_chars, self.word_lookup)
-    print('context_len: {}'.format(context_len))
     context_vec, _ = self.word_network.context_encoder(words_batch, positions, context_len, self.word_lookup)
 
     input_vec = torch.cat((mention_vec, context_vec), dim=1)
@@ -61,6 +65,7 @@ class ComposedNetwork(Module):
     common_output = self.common_module(input_vec)
 
     print('common_output shape: {}'.format(common_output.shape))
+
 
 
     return True

@@ -17,7 +17,7 @@ class MultiEmbeddingManager(Embedding):
 		self.classes = classes
 
 	def setup_classes_factory(self):
-		self.classes_dict = {
+		self.factory_dict = {
 			"NickelEmbedding" : NickelEmbedding,
 			"Type2VecEmbedding": Type2VecEmbeddingManager
 		}
@@ -42,7 +42,7 @@ class MultiEmbeddingManager(Embedding):
 
 		for name in names:
 			# initialize with factory
-			self.embeddings[name] = self.classes_dict[self.classes[name]]()
+			self.embeddings[name] = self.factory_dict[self.classes[name]]()
 			# load embeddings
 			self.embeddings[name].load_from_file(paths[name])
 			

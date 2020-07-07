@@ -4,8 +4,8 @@ from embedding_managers.glove_word_embedding import glove_word_embedding
 from embedding_managers.multi_type_embedding_manager import MultiEmbeddingManager
 from parsers.ShimaokaParser import ShimaokaParser
 
-WORD_EMBEDDING_CONFIG = "GLOVE"
-TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
+# WORD_EMBEDDING_CONFIG = "GLOVE"
+# TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
 
 classes_dict = {
   'GLOVE' : glove_word_embedding,
@@ -16,9 +16,10 @@ dataset_parsers_dict = {
   'SHIMAOKA' : ShimaokaParser
 }
 
-
-
 def get_parsed_datasets(config):
+
+  WORD_EMBEDDING_CONFIG = config['DEFAULT']['WORD_EMBEDDING_CONFIG']
+  TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
 
   dataset = parse_dataset(path = config[WORD_EMBEDDING_CONFIG]["DATASET_PATH"])
 
@@ -61,6 +62,8 @@ def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
     encoded_dataset.append(encoded_entry)
   # print(encoded_dataset)
 
+  TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
+
   if config.has_option(section = TYPE_EMBEDDING_CONFIG, 
                         option = 'PADDING_INDEX'):
     encoded_dataset = uniform_labels_number(encoded_dataset, int(config[TYPE_EMBEDDING_CONFIG]['PADDING_INDEX']))
@@ -88,10 +91,14 @@ def obtain_embeddings(config):
   print(' Loading word embeddings')
   print('-----------------------------------------------------------------------------------')
   
+  WORD_EMBEDDING_CONFIG = config['DEFAULT']['WORD_EMBEDDING_CONFIG']
+
   word_embeddings = classes_dict[WORD_EMBEDDING_CONFIG]()
 
   word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
   
+  TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
+
   if int(config['DEFAULT']['TYPE_SPACE_NUMBER']) >= 1:
     if TYPE_EMBEDDING_CONFIG == "MultiTypeEmbedding":
       type_embeddings = retrieve_multi_type_embeddings(config)
@@ -110,6 +117,8 @@ def obtain_embeddings(config):
   return word_embeddings, type_embeddings
 
 def retrieve_multi_type_embeddings(config):
+
+  TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
 
   embedding_config_names = config[TYPE_EMBEDDING_CONFIG]["EMBEDDING_CONFIGS"].split(' ')
 
