@@ -71,3 +71,6 @@ class MultiEmbeddingManager(Embedding):
 
 	def generate_lookup_network(self):
 		return {name: model.generate_lookup_network() for name, model in self.embeddings.items()}
+
+	def get_embeddings_number(self):
+		return len(self.token2idx_dict)

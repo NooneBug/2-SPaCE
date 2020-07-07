@@ -15,6 +15,7 @@ class LookupNetwork(Module):
 		self.emb = embedding
 		self.padding_idx = padding_idx
 		self.embedding_dim = embedding.get_vector_dim()
+		self.embedding_number = embedding.get_embeddings_number()
 
 	def forward(self, input_batch):
 		batch = []

@@ -1,12 +1,10 @@
-from torch import nn
 from torch.nn import Module
-from models.geooptModules import MobiusLinear, mobius_linear, create_ball
+from torch import nn
 
-
-class NickelProjector(Module):
+class Type2VecProjector(Module):
 
   def __init__(self, config):
-    self.nametag = 'HYPERBOLIC_PROJECTOR'
+    self.nametag = 'COSINE_PROJECTOR'
     self.conf = dict(config[self.nametag])
     self.cast_params()
 
@@ -18,7 +16,7 @@ class NickelProjector(Module):
     prec = self.input_dim
         
     for dim in self.layers_dims:
-      self.layers.append(MobiusLinear(prec, dim).cuda())
+      self.layers.append(nn.Linear(prec, dim).cuda())
             
       prec = dim
 
@@ -29,5 +27,5 @@ class NickelProjector(Module):
   def forward(self, x):
     for i in range(len(self.layers) - 1):
         x = self.relu(self.layers[i](x))
-    output = self.layers[-1](x)
-    return output
+    layers = self.layers[-1](x)
+    return layers
