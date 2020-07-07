@@ -46,6 +46,8 @@ class ShimaokaParser(Parser):
 
       encoded_sentence = encoded_entry[config_default_dict['LEFT_CONTEXT']] + encoded_entry[config_default_dict['MENTION']] + encoded_entry[config_default_dict['RIGHT_CONTEXT']] 
 
+      sentence_length = torch.tensor([len(encoded_sentence)]).cuda()
+      
       while len(encoded_sentence) < sentence_max_length:
         encoded_sentence.append(self.conf['padding_index'])
 
@@ -60,7 +62,6 @@ class ShimaokaParser(Parser):
           context_positions[i] = float(i - (len(left_context) + len(mention)) + 1)
 
       
-      sentence_length = torch.tensor([len(encoded_sentence)])
     
       encoded_mention = self.get_encoded_mention(encoded_entry[config_default_dict['MENTION']], 
                                                   self.conf['mention_length'])

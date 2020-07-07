@@ -35,7 +35,7 @@ def sort_batch_by_length(tensor: torch.autograd.Variable, sequence_lengths: torc
 
       if not isinstance(tensor, Variable) or not isinstance(sequence_lengths, Variable):
           raise ValueError("Both the tensor and sequence lengths must be torch.autograd.Variables.")
-
+      
       sorted_sequence_lengths, permutation_index = sequence_lengths.sort(0, descending=True)
       sorted_tensor = tensor.index_select(0, permutation_index)
       # This is ugly, but required - we are creating a new variable at runtime, so we
@@ -101,11 +101,10 @@ class CharEncoder(nn.Module):
       super(CharEncoder, self).__init__()
       conv_dim_input = 100
       filters = 5
-      self.char_W = nn.Embedding(len(self.CHARS), conv_dim_input, padding_idx=0)
-      self.conv1d = nn.Conv1d(conv_dim_input, conf['char_emb_size'], filters)  # input, output, filter_number
+      self.char_W = nn.Embedding(len(self.CHARS), conv_dim_input, padding_idx=0).cuda()
+      self.conv1d = nn.Conv1d(conv_dim_input, conf['char_emb_size'], filters).cuda()  # input, output, filter_number
 
     def forward(self, span_chars):
-        # print('span_chars: {}'.format(span_chars))
         char_embed = self.char_W(span_chars).transpose(1, 2)  # [batch_size, char_embedding, max_char_seq]
         conv_output = [self.conv1d(char_embed)]  # list of [batch_size, filter_dim, max_char_seq, filter_number]
         conv_output = [F.relu(c) for c in conv_output]  # batch_size, filter_dim, max_char_seq, filter_num
@@ -123,7 +122,6 @@ class MentionEncoder(nn.Module):
 
     def forward(self, mentions, mention_chars, word_lut):
         mention_embeds = word_lut(mentions)             # batch x mention_length x emb_size
-
         weighted_avg_mentions, _ = self.attentive_weighted_average(mention_embeds)
         char_embed = self.char_encoder(mention_chars)
         output = torch.cat((weighted_avg_mentions, char_embed), 1)
@@ -136,9 +134,9 @@ class ContextEncoder(nn.Module):
         self.rnn_size = conf['context_rnn_size']
         self.hidden_attention_size = 100
         super(ContextEncoder, self).__init__()
-        self.pos_linear = nn.Linear(1, self.pos_emb_size)
+        self.pos_linear = nn.Linear(1, self.pos_emb_size).cuda()
         self.context_dropout = nn.Dropout(conf['context_dropout'])
-        self.rnn = nn.LSTM(self.emb_size + self.pos_emb_size, self.rnn_size, bidirectional=True, batch_first=True)
+        self.rnn = nn.LSTM(self.emb_size + self.pos_emb_size, self.rnn_size, bidirectional=True, batch_first=True).cuda()
         self.attention = SelfAttentiveSum(self.rnn_size * 2, self.hidden_attention_size) # x2 because of bidirectional
 
     def forward(self, ctx_word_embeds, positions, context_len, word_lut, hidden=None):
@@ -165,6 +163,7 @@ class ContextEncoder(nn.Module):
     def sorted_rnn(self, ctx_embeds, context_len):
         sorted_inputs, sorted_sequence_lengths, restoration_indices = sort_batch_by_length(ctx_embeds, context_len)
         packed_sequence_input = pack(sorted_inputs, sorted_sequence_lengths, batch_first=True)
+        self.rnn.flatten_parameters()
         packed_sequence_output, _ = self.rnn(packed_sequence_input, None)
         unpacked_sequence_tensor, _ = unpack(packed_sequence_output, batch_first=True)
         return unpacked_sequence_tensor.index_select(0, restoration_indices)
@@ -180,10 +179,10 @@ class SelfAttentiveSum(nn.Module):
         :param hidden_dim:
         """
         super(SelfAttentiveSum, self).__init__()
-        self.key_maker = nn.Linear(embed_dim, hidden_dim, bias=False)
+        self.key_maker = nn.Linear(embed_dim, hidden_dim, bias=False).cuda()
         self.key_rel = nn.ReLU()
         self.hidden_dim = hidden_dim
-        self.key_output = nn.Linear(hidden_dim, 1, bias=False)
+        self.key_output = nn.Linear(hidden_dim, 1, bias=False).cuda()
         self.key_softmax = nn.Softmax(dim=1)
 
     def forward(self, input_embed):     # batch x seq_len x emb_dim

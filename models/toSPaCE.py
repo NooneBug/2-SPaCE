@@ -49,6 +49,7 @@ class ComposedNetwork(Module):
     words_batch = self.word_lookup(contexts)
 
     mention_vec = self.word_network.mention_encoder(mentions, mention_chars, self.word_lookup)
+    print('context_len: {}'.format(context_len))
     context_vec, _ = self.word_network.context_encoder(words_batch, positions, context_len, self.word_lookup)
 
     input_vec = torch.cat((mention_vec, context_vec), dim=1)
@@ -56,6 +57,11 @@ class ComposedNetwork(Module):
     print('mention shape: {}'.format(mention_vec.shape))
     print('context shape: {}'.format(context_vec.shape))
     print('input shape: {}'.format(input_vec.shape))
+
+    common_output = self.common_module(input_vec)
+
+    print('common_output shape: {}'.format(common_output.shape))
+
 
     return True
 
