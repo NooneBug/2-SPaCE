@@ -8,9 +8,9 @@ TRAIN_CONFIG = 'TRAINING_PARAMETERS'
 def train(config):
 	trainLoader, model = training_setup(config)
 
-	print(model)
+	# print(model)
 
-	# training_routine(trainLoader, model)
+	training_routine(trainLoader, model)
 
 def training_routine(train_loader, model):
 	model.train_(train_loader)

@@ -1,5 +1,7 @@
 from parsers.parser_interface import Parser
 from models.input_encoder_models.ShimaokaModel import CharEncoder
+import torch
+
 
 class ShimaokaParser(Parser):
 
@@ -51,13 +53,14 @@ class ShimaokaParser(Parser):
 
       for i in range(sentence_max_length):
         if i < len(left_context):
-          context_positions[i] = - (len(left_context) - i)
+          context_positions[i] = float(- (len(left_context) - i))
         elif i < len(left_context) + len(mention):
-          context_positions[i] = 0
+          context_positions[i] = float(0)
         elif i < len(encoded_sentence):
-          context_positions[i] = i - (len(left_context) + len(mention)) + 1
+          context_positions[i] = float(i - (len(left_context) + len(mention)) + 1)
 
-      sentence_length = len(encoded_sentence)
+      
+      sentence_length = torch.tensor([len(encoded_sentence)])
     
       encoded_mention = self.get_encoded_mention(encoded_entry[config_default_dict['MENTION']], 
                                                   self.conf['mention_length'])
@@ -67,7 +70,7 @@ class ShimaokaParser(Parser):
 
       encoded_labels = encoded_entry[config_default_dict['LABELS']]
 
-      configuration_entry = [encoded_sentence, context_positions, [sentence_length], 
+      configuration_entry = [encoded_sentence, context_positions, sentence_length, 
                               encoded_mention, encoded_mention_chars, encoded_labels]
       
       configuration_dataset.append(configuration_entry)
@@ -100,6 +103,6 @@ class ShimaokaParser(Parser):
     for char in mention:
       encoded_mention_chars.append(char_encoder.CHARS.index(char))
     while len(encoded_mention_chars) < max_length:
-      encoded_mention_chars.append(self.conf['padding_index'])
+      encoded_mention_chars.append(char_encoder.CHARS.index(self.conf['char_pad']))
     return encoded_mention_chars
       

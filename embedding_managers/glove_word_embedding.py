@@ -9,18 +9,21 @@ class glove_word_embedding(Embedding):
     self.token2vec = {}
     self.token2idx_dict = {}
 
-  def generate_lookup_network(self, padding_idx):
-    if padding_idx:
+  def generate_lookup_network(self, padding_idx = None):
+    if type(padding_idx) == int:
       lookup_net = LookupNetwork(self, padding_idx=padding_idx)
     else:
       lookup_net = LookupNetwork(self)
 
+    self.padding_idx = padding_idx
 
     weights = [self.idx2vec(id).numpy() for id in range(self.get_embeddings_number())]
 
     weights = torch.tensor(weights)
 
     lookup_net.model.weight.data.copy_(weights)
+    lookup_net.model.weight.requires_grad = False
+
 
     return lookup_net
 
@@ -65,9 +68,10 @@ class glove_word_embedding(Embedding):
   def token2idx(self, token):
     return self.token2idx_dict[token]
 
-  def idx2token(self, id):
-    return self.id2token_dict[id]
-
-  def idx2vec(self, id):
-    return self.token2vec[self.idx2token(id)]
+  def idx2token(self, idx):
+    if idx != self.padding_idx:
+      return self.id2token_dict[idx]
+    
+  def idx2vec(self, idx):
+    return self.token2vec[self.idx2token(idx)]
 

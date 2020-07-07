@@ -1,6 +1,54 @@
 from torch import nn
 from models.lookup_models import lookup_networks
 from torch.nn import Module
+import torch
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torch.nn.utils.rnn import pad_packed_sequence as unpack
+from torch.nn.utils.rnn import pack_padded_sequence as pack
+
+
+
+def sort_batch_by_length(tensor: torch.autograd.Variable, sequence_lengths: torch.autograd.Variable):
+      """
+      @ from allennlp
+      Sort a batch first tensor by some specified lengths.
+
+      Parameters
+      ----------
+      tensor : Variable(torch.FloatTensor), required.
+          A batch first Pytorch tensor.
+      sequence_lengths : Variable(torch.LongTensor), required.
+          A tensor representing the lengths of some dimension of the tensor which
+          we want to sort by.
+
+      Returns
+      -------
+      sorted_tensor : Variable(torch.FloatTensor)
+          The original tensor sorted along the batch dimension with respect to sequence_lengths.
+      sorted_sequence_lengths : Variable(torch.LongTensor)
+          The original sequence_lengths sorted by decreasing size.
+      restoration_indices : Variable(torch.LongTensor)
+          Indices into the sorted_tensor such that
+          ``sorted_tensor.index_select(0, restoration_indices) == original_tensor``
+      """
+
+      if not isinstance(tensor, Variable) or not isinstance(sequence_lengths, Variable):
+          raise ValueError("Both the tensor and sequence lengths must be torch.autograd.Variables.")
+
+      sorted_sequence_lengths, permutation_index = sequence_lengths.sort(0, descending=True)
+      sorted_tensor = tensor.index_select(0, permutation_index)
+      # This is ugly, but required - we are creating a new variable at runtime, so we
+      # must ensure it has the correct CUDA vs non-CUDA type. We do this by cloning and
+      # refilling one of the inputs to the function.
+      index_range = sequence_lengths.data.clone().copy_(torch.arange(0, len(sequence_lengths)))
+      # This is the equivalent of zipping with index, sorting by the original
+      # sequence lengths and returning the now sorted indices.
+      index_range = Variable(index_range.long())
+      _, reverse_mapping = permutation_index.sort(0, descending=False)
+      restoration_indices = index_range.index_select(0, reverse_mapping)
+      return sorted_tensor, sorted_sequence_lengths, restoration_indices
+
 
 class ShimaokaMentionAndContextEncoder(Module):
 
@@ -11,8 +59,8 @@ class ShimaokaMentionAndContextEncoder(Module):
     self.conf = dict(config[self.nametag])
     self.cast_params()
     
-    self.mention_encoder = MentionEncoder(self.conf).cuda()
-    self.context_encoder = ContextEncoder(self.conf).cuda()
+    self.mention_encoder = MentionEncoder(self.conf)
+    self.context_encoder = ContextEncoder(self.conf)
     self.feature_len = self.conf['context_rnn_size'] * 2 + self.conf['emb_size'] + self.conf['char_emb_size']
 
   def cast_params(self):
@@ -27,14 +75,15 @@ class ShimaokaMentionAndContextEncoder(Module):
     self.conf[key] = cast_type(self.conf[key])
   
   def forward(self, input):
-    contexts, positions, context_len = input[0], input[1], input[2]
-    mentions, mention_chars = input[3], input[4]
-    type_indexes = input[5]
+    # contexts, positions, context_len = input[0], input[1], input[2]
+    # mentions, mention_chars = input[3], input[4]
+    # type_indexes = input[5]
 
-    mention_vec = self.mention_encoder(mentions, mention_chars, self.word_lut)
-    context_vec, attn = self.context_encoder(contexts, positions, context_len, self.word_lut)
+    # mention_vec = self.mention_encoder(mentions, mention_chars, self.word_lut)
+    # context_vec, attn = self.context_encoder(contexts, positions, context_len, self.word_lut)
 
-    input_vec = torch.cat((mention_vec, context_vec), dim=1)
+    # input_vec = torch.cat((mention_vec, context_vec), dim=1)
+    pass
 
 
 class CharEncoder(nn.Module):
@@ -46,7 +95,7 @@ class CharEncoder(nn.Module):
       'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd',\
       'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',\
       '{', '}', '~', '·', 'Ì', 'Û', 'à', 'ò', 'ö', '˙', 'ِ', '’', '→', '■', '□', '●', '【', '】', 'の', '・', '一', '（',\
-      '）', '＊', '：', '￥', ' ']
+      '）', '＊', '：', '￥', ' ', '<pad>']
 
 
       super(CharEncoder, self).__init__()
@@ -56,6 +105,7 @@ class CharEncoder(nn.Module):
       self.conv1d = nn.Conv1d(conv_dim_input, conf['char_emb_size'], filters)  # input, output, filter_number
 
     def forward(self, span_chars):
+        # print('span_chars: {}'.format(span_chars))
         char_embed = self.char_W(span_chars).transpose(1, 2)  # [batch_size, char_embedding, max_char_seq]
         conv_output = [self.conv1d(char_embed)]  # list of [batch_size, filter_dim, max_char_seq, filter_number]
         conv_output = [F.relu(c) for c in conv_output]  # batch_size, filter_dim, max_char_seq, filter_num
@@ -91,14 +141,14 @@ class ContextEncoder(nn.Module):
         self.rnn = nn.LSTM(self.emb_size + self.pos_emb_size, self.rnn_size, bidirectional=True, batch_first=True)
         self.attention = SelfAttentiveSum(self.rnn_size * 2, self.hidden_attention_size) # x2 because of bidirectional
 
-    def forward(self, contexts, positions, context_len, word_lut, hidden=None):
+    def forward(self, ctx_word_embeds, positions, context_len, word_lut, hidden=None):
         """
         :param contexts: batch x max_seq_len
         :param positions: batch x max_seq_len
         :param context_len: batch x 1
         """
         positional_embeds = self.get_positional_embeddings(positions)   # batch x max_seq_len x pos_emb_size
-        ctx_word_embeds = word_lut(contexts)                            # batch x max_seq_len x emb_size
+        # ctx_word_embeds = word_lut(contexts)                            # batch x max_seq_len x emb_size
         ctx_embeds = torch.cat((ctx_word_embeds, positional_embeds), 2)
 
         ctx_embeds = self.context_dropout(ctx_embeds)
@@ -118,7 +168,8 @@ class ContextEncoder(nn.Module):
         packed_sequence_output, _ = self.rnn(packed_sequence_input, None)
         unpacked_sequence_tensor, _ = unpack(packed_sequence_output, batch_first=True)
         return unpacked_sequence_tensor.index_select(0, restoration_indices)
-
+    
+    
 class SelfAttentiveSum(nn.Module):
     """
     Attention mechanism to get a weighted sum of RNN output sequence to a single RNN output dimension.
@@ -146,3 +197,6 @@ class SelfAttentiveSum(nn.Module):
         weighted_keys = self.key_softmax(k).view(input_embed.size()[0], -1, 1)  # batch x seq_len x 1
         weighted_values = torch.sum(weighted_keys * input_embed, 1)  # batch_size, embed_dim
         return weighted_values, weighted_keys
+
+
+  
