@@ -51,6 +51,12 @@ class MultiEmbeddingManager(Embedding):
 
 		self.generate_token2idx_dict()
 
+		self.inject_token2idx_dict()
+
+		# print('embeddings: {}'.format({k: v for k, v in self.embeddings.items()}))
+
+		# print('embeddings norms: {}'.format({k: {k2: torch.norm(v2) for k2, v2 in v.embeddings.items()} for k, v in self.embeddings.items()}))
+
 		return self.embeddings
 
 	def torchify(self, names):
@@ -66,6 +72,10 @@ class MultiEmbeddingManager(Embedding):
 		
 		for i, t in enumerate(tokens):
 			self.token2idx_dict[t] = i
+
+	def inject_token2idx_dict(self):
+		for k, emb in self.embeddings.items():
+			emb.set_token2idx_dict(self.token2idx_dict)
 
 	def token2idx(self, token):
 		return self.token2idx_dict[token]

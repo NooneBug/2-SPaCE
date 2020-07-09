@@ -1,22 +1,20 @@
 from models.projectors.NickelProjector import NickelProjector 
 from models.projectors.Type2VecProjector import Type2VecProjector
-from torch.nn import Module, ModuleList
+from torch.nn import Module, ModuleDict
 
-class MultiProjectorHandler(Module):
+class MultiProjectorManager(Module):
 
   def __init__(self, config):
 
     super().__init__()
     
-    self.nametag = 'MultiProjectorsHandler'
+    self.nametag = 'MultiProjectorsManager'
 
     self.setup_classes_factory()
-
-    self.names = config[self.nametag]['PROJECTOR_CONFIGS'].split(' ')
-
+		
     self.classes = self.get_classes(config)
 
-    self.projectors = ModuleList([cl(config) for cl in self.classes])
+    self.projectors = ModuleDict({k:cl(config) for k, cl in self.classes.items()})
     # print('projectors: {}'.format(self.projectors))
 
   def setup_classes_factory(self):
@@ -26,15 +24,16 @@ class MultiProjectorHandler(Module):
     }
 
   def get_classes(self, conf):
-    classes = []
+    self.names = conf[self.nametag]['PROJECTOR_CONFIGS'].split(' ')
+    classes = {}
     for name in self.names:
-      classes.append(self.factory_dict[conf[name]['Class']])
+      classes[conf[name]['NAME']] = self.factory_dict[conf[name]['Class']]
     return classes
   
   def forward(self, vec):
-    projections = []
-    for projector in self.projectors:
-      projections.append(projector(vec))
+    projections = {}
+    for k, projector in self.projectors.items():
+      projections[k] = projector(vec)
     return projections
 
 

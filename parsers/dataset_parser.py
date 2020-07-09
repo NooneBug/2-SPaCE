@@ -3,6 +3,7 @@ import json
 from embedding_managers.glove_word_embedding import glove_word_embedding
 from embedding_managers.multi_type_embedding_manager import MultiEmbeddingManager
 from parsers.ShimaokaParser import ShimaokaParser
+from random import sample
 
 # WORD_EMBEDDING_CONFIG = "GLOVE"
 # TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
@@ -81,7 +82,7 @@ def uniform_labels_number(encoded_dataset, padding_index):
   for i, l in enumerate(encoded_dataset):
     uniformed_entry = l['labels']
     while len(uniformed_entry) < max_labels:
-      uniformed_entry.append(padding_index)
+      uniformed_entry.append(sample(uniformed_entry, 1)[0])
     encoded_dataset[i]['labels'] = uniformed_entry
   
   return encoded_dataset
@@ -125,7 +126,7 @@ def retrieve_multi_type_embeddings(config):
   if len(embedding_config_names) != int(config['DEFAULT']['TYPE_SPACE_NUMBER']):
     raise Exception('ERROR: the number of type space(s) and their names/configuration in config.ini does not match')
 
-  names = [config[n]["NAME"] for n in embedding_config_names]
+  names = [config[n]["EMBEDDING_NAME"] for n in embedding_config_names]
   paths = [config[n]["PATH"] for n in embedding_config_names]
   classes = [config[n]["EMBEDDING_CLASS_NAME"] for n in embedding_config_names]
 

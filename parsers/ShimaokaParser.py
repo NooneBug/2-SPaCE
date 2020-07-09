@@ -82,6 +82,8 @@ class ShimaokaParser(Parser):
       print('encoded_mention: {}'.format(encoded_mention))
       print('encoded_mention_chars: {}'.format(encoded_mention_chars))
       print('encoded_labels: {}'.format(encoded_labels))
+      print('------------------------')
+
 
     return configuration_dataset
 

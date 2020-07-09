@@ -17,7 +17,7 @@ class glove_word_embedding(Embedding):
 
     self.padding_idx = padding_idx
 
-    weights = [self.idx2vec(id).numpy() for id in range(self.get_embeddings_number())]
+    weights = [self.idx2vec(idx).numpy() for idx in range(self.get_embeddings_number())]
 
     weights = torch.tensor(weights)
 
