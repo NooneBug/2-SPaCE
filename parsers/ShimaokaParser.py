@@ -60,8 +60,6 @@ class ShimaokaParser(Parser):
           context_positions[i] = float(0)
         elif i < len(encoded_sentence):
           context_positions[i] = float(i - (len(left_context) + len(mention)) + 1)
-
-      
     
       encoded_mention = self.get_encoded_mention(encoded_entry[config_default_dict['MENTION']], 
                                                   self.conf['mention_length'])

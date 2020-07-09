@@ -23,6 +23,6 @@ class Embedding(ABC):
     """return the dimension of vectors in this embedding"""
     pass
 
-  def generate_lookup_network(self) -> LookupNetwork:
+  def generate_lookup_network(self, padding_index:int) -> LookupNetwork:
     """" generate and returns a lookup network on the embeddings"""
     pass

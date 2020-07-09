@@ -1,6 +1,7 @@
 from embedding_managers.embedding_interface import Embedding
 from embedding_managers.nickel_embedding import NickelEmbedding
 from embedding_managers.type2vec_embedding import Type2VecEmbeddingManager
+# from models.lookup_models.multi
 
 import torch
 
@@ -69,8 +70,8 @@ class MultiEmbeddingManager(Embedding):
 	def token2idx(self, token):
 		return self.token2idx_dict[token]
 
-	def generate_lookup_network(self):
-		return {name: model.generate_lookup_network() for name, model in self.embeddings.items()}
+	def generate_lookup_network(self, padding_idx = None):
+		return {name: model.generate_lookup_network(padding_idx = padding_idx) for name, model in self.embeddings.items()}
 
 	def get_embeddings_number(self):
 		return len(self.token2idx_dict)

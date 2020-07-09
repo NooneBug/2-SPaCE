@@ -17,7 +17,7 @@ class MultiProjectorHandler(Module):
     self.classes = self.get_classes(config)
 
     self.projectors = ModuleList([cl(config) for cl in self.classes])
-    print('projectors: {}'.format(self.projectors))
+    # print('projectors: {}'.format(self.projectors))
 
   def setup_classes_factory(self):
     self.factory_dict = {

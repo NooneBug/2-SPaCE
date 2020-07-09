@@ -18,9 +18,9 @@ class Type2VecEmbeddingManager(Embedding):
   def get_vector_dim(self):
     return len(list(self.embeddings.values())[0])
 
-  def generate_lookup_network(self):
+  def generate_lookup_network(self, padding_idx):
     
-    lookup_network = LookupNetwork(self)
+    lookup_network = LookupNetwork(self, padding_idx=padding_idx)
     
     # weights = torch.tensor([self.id2vec(id) for id in range(self.get_embeddings_number())])
 

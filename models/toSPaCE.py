@@ -4,6 +4,7 @@ from models.CommonNetwork import CommonNetwork
 from models.projectors.multiProjectorHandler import MultiProjectorHandler 
 from models.projectors.NickelProjector import NickelProjector
 from models.classifier_module import Classifier
+from losses.MultiLossHandler import MultiLossHandler
 from torch.nn import Module
 from torch.utils.data import DataLoader
 import torch
@@ -38,8 +39,13 @@ class ComposedRegressiveNetwork(Module):
       "CommonNetwork": CommonNetwork,
       'MultiProjectorsHandler': MultiProjectorHandler
     }
+    
     self.dataLoader_factory = {
       "ShimaokaDataLoader": ShimaokaDataset
+    }
+
+    self.losses_factory = {
+      'MultiLossHandler': MultiLossHandler
     }
   
   def get_DataLoader(self, dataset, batch_size, shuffle):
@@ -76,8 +82,39 @@ class ComposedRegressiveNetwork(Module):
   def train_(self, dataloader):
     
     for data in dataloader:  
-      loss = self(data)
+      model_output = self(data)
 
+      print('model_output: {}'.format(model_output))
+
+      labels = data[5]
+      true_vectors = self.get_true_vectors(labels)
+
+      print(true_vectors)
+
+      # loss = self.compute_loss(model_output)
+
+  def get_true_vectors(self, labels):
+    true_vectors = [[] for i in self.type_lookup]
+
+
+    print(labels)
+
+    for i, lookup in enumerate(self.type_lookup.values()):
+      print(lookup)
+      true_vectors[i].append(lookup(labels))
+      
+    return true_vectors
+
+  def compute_loss(self, projectors_output):
+    '''projectors_output are batched projectors outputs'''
+    
+    loss_keyword = self.config['2-SPACE MODULES CONFIGS']['LOSS']
+    
+    loss_config = self.config[loss_keyword]
+
+    loss_handler = self.losses_factory['loss_config'](self.config)
+
+    loss = loss_handler(projectors_output)
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
