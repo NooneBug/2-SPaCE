@@ -7,6 +7,7 @@ from models.classifier_module import Classifier
 from losses.MultiLossManager import MultiLossManager
 from torch.nn import Module
 from torch.utils.data import DataLoader
+
 import torch
 
 class ComposedRegressiveNetwork(Module):
@@ -83,9 +84,10 @@ class ComposedRegressiveNetwork(Module):
     for data in dataloader:  
       model_output = self(data)
 
+      print('model_output: {}'.format(model_output))
+
       labels = data[5]
       true_vectors = self.get_true_vectors(labels)
-
 
       loss = self.compute_loss(model_output, true_vectors)
 
@@ -106,7 +108,7 @@ class ComposedRegressiveNetwork(Module):
 
     loss_manager = self.losses_factory[loss_config](self.config)
 
-    loss = loss_manager.compute_loss(true_vectors, projectors_output)
+    return loss_manager.compute_loss(true_vectors, projectors_output)
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
@@ -151,9 +153,10 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
     projections = self.projectors(common_output)
 
-    print('projections shapes: {}'.format([p.shape for p in projections]))
+    print('projetions keys: {}'.format([k for k in projections]))
+    print('projections shapes: {}'.format([p.shape for p in projections.values()]))
 
-    projections_concat = torch.cat(tuple([p for p in projections]), dim=-1)
+    projections_concat = torch.cat(tuple([p for p in projections.values()]), dim=-1)
 
     classifier_input = torch.cat((common_output, projections_concat), dim = -1)
 
@@ -164,3 +167,42 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
     print('classifier output shape: {}'.format(classifier_output.shape))
 
     return projections, classifier_output
+
+  def train_(self, dataloader):
+    
+    for data in dataloader:  
+      regression_output, classifier_output = self(data)
+
+      labels = data[5]
+      true_vectors = self.get_true_vectors(labels)
+
+      loss = self.compute_loss(regression_output, true_vectors)
+
+      OH_labels = self.get_OneHot_labels(labels)
+
+      classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
+
+      print('loss: {}'.format(loss))
+      print('classifier_loss: {}'.format(classifier_loss))
+
+  def get_OneHot_labels(self, labels):
+    n_classes = self.get_types_number(self.type_lookup)
+    
+    onehot_labels = torch.zeros((len(labels), n_classes)).cuda()
+    
+    ones = torch.ones((len(labels), n_classes)).cuda()
+
+
+    out = onehot_labels.scatter_(-1, labels, ones).cuda()
+
+    return out
+
+  def compute_loss(self, regression_output, true_vectors):
+    loss_keyword = self.config['2-SPACE MODULES CONFIGS']['LOSS']
+    loss_config = self.config[loss_keyword]['Class']
+    loss_manager = self.losses_factory[loss_config](self.config)
+
+    return loss_manager.compute_loss(true_vectors, regression_output)
+
+  def compute_classifier_loss(self, classifier_output, true_labels):
+    return self.classifier.compute_loss(classifier_output, true_labels)

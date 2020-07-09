@@ -3,10 +3,18 @@ from torch import nn
 
 class Classifier(Module):
 
+  def define_factory(self):
+    self.losses_factory = {
+        'BCELoss': nn.BCELoss
+      }
+  
+
   def __init__(self, config, classes_number):
     self.nametag = 'CLASSIFIER'
 
     self.cast_params(config[self.nametag])
+
+    self.define_factory()
 
     super().__init__()
 
@@ -22,7 +30,20 @@ class Classifier(Module):
 
     self.sigmoid = nn.Sigmoid()
     self.leaky_relu = nn.LeakyReLU(0.1).cuda()
-    self.classification_loss = nn.BCELoss()
+    self.classification_loss = self.get_classifier_loss(config)()
+
+  def compute_loss(self, pred, true):
+    return self.classification_loss(pred, true)
+
+  def get_classifier_loss(self, config):
+    loss_class = config[self.nametag]['LOSS']
+
+    # loss_config = config[loss_keyword]['Class']
+
+    loss_manager = self.losses_factory[loss_class]
+
+    return loss_manager
+
 
   def forward(self, x):
     

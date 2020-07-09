@@ -16,7 +16,7 @@ class MultiLossManager():
 
   def compute_loss(self, true_vectors, projection_output):
     losses_values = {k:l.compute_loss(true_vectors[k], projection_output[k]) for k, l in self.losses.items()}
-    print('losses_values: {}'.format(losses_values))
+    return losses_values
 
   def get_classes(self, conf):
     self.classes_names = conf[self.nametag]['LOSSES'].split(' ')
