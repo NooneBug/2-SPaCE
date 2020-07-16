@@ -1,11 +1,20 @@
 from dataloaders.ShimaokaDataLoader import ShimaokaDataset
+
 from models.input_encoder_models.ShimaokaModel import ShimaokaMentionAndContextEncoder
+
 from models.CommonNetwork import CommonNetwork
+
 from models.projectors.multiProjectorManager import MultiProjectorManager 
 from models.projectors.NickelProjector import NickelProjector
+
 from models.classifier_module import Classifier
+
 from losses.MultiLossManager import MultiLossManager
+
+from optimizers.riemannianAdamOptimizer import RiemannianAdamOptimizer
+
 from torch.nn import Module
+
 from torch.utils.data import DataLoader
 
 import torch
@@ -29,6 +38,14 @@ class ComposedRegressiveNetwork(Module):
 
     self.projectors = self.get_network_class('PROJECTORS')(config)
   
+  def set_optimizer(self, config):
+    nametag = 'TRAINING_PARAMETERS'
+
+    optimizer_config = config[nametag]['optimizer']
+    optimizer_class = self.optimizer_factory[config[optimizer_config]['class']]
+    
+    self.optimizer = optimizer_class(config, self)
+
   def get_network_class(self, config_key):
     return self.network_factory[self.config[self.config['2-SPACE MODULES CONFIGS'][config_key]]['CLASS']]
 
@@ -45,6 +62,10 @@ class ComposedRegressiveNetwork(Module):
 
     self.losses_factory = {
       'MultiLossManager': MultiLossManager
+    }
+
+    self.optimizer_factory = {
+      'riemannianAdamOptimizer': RiemannianAdamOptimizer
     }
   
   def get_DataLoader(self, dataset, batch_size, shuffle):
@@ -82,6 +103,10 @@ class ComposedRegressiveNetwork(Module):
   def train_(self, dataloader):
     
     for data in dataloader:  
+      
+      self.optimizer.zero_grad()
+      self.train()
+
       model_output = self(data)
 
       print('model_output: {}'.format(model_output))
@@ -90,6 +115,10 @@ class ComposedRegressiveNetwork(Module):
       true_vectors = self.get_true_vectors(labels)
 
       loss = self.compute_loss(model_output, true_vectors)
+
+      loss.backward()
+
+      self.optimizer.step()
 
   def get_true_vectors(self, labels):
     true_vectors = {}
@@ -170,7 +199,11 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
   def train_(self, dataloader):
     
-    for data in dataloader:  
+    for data in dataloader: 
+
+      self.optimizer.zero_grad()
+      self.train()
+
       regression_output, classifier_output = self(data)
 
       labels = data[5]
@@ -184,6 +217,24 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
       print('loss: {}'.format(loss))
       print('classifier_loss: {}'.format(classifier_loss))
+
+      total_loss = self.compute_loss_value(loss, classifier_loss)
+
+      print('total_loss: {}'.format(total_loss))
+
+      total_loss.backward()
+
+      self.optimizer.step()
+
+
+  def compute_loss_value(self, loss, classifier_loss):
+    mean_losses = [torch.mean(v) for v in loss.values()]
+
+    print('mean losses : {}'.format(mean_losses))
+
+    loss_sum = sum(mean_losses)
+
+    return loss_sum.add_(classifier_loss)
 
   def get_OneHot_labels(self, labels):
     n_classes = self.get_types_number(self.type_lookup)

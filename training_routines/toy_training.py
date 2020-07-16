@@ -31,6 +31,8 @@ def training_setup(config):
 																	type_embedding_lookup=type_embedding_lookup,
 																	config = config)
 
+	model.set_optimizer(config)
+
 	train_config = config[TRAIN_CONFIG]
 
 	# print('--------------------')
