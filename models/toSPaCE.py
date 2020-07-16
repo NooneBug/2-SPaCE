@@ -28,6 +28,7 @@ class ComposedRegressiveNetwork(Module):
     self.config = config
     self.define_factory()
     self.set_parameters()
+    self.initialize_loss_manager()
 
     self.word_lookup = word_lookup
 
@@ -106,8 +107,10 @@ class ComposedRegressiveNetwork(Module):
 
   def train_(self, train_loader, val_loader):
     
+    loss_SUM = 0
+    val_loss_SUM = 0
+
     for e in range(self.epochs):
-      print('epoch: {}'.format(e))
       for data in train_loader:  
         
         
@@ -123,13 +126,11 @@ class ComposedRegressiveNetwork(Module):
 
         loss = self.compute_loss(model_output, true_vectors)
 
-        # print('loss: {}'.format(loss))
-
         loss = self.compute_loss_value(loss)
-
-        print('aggregated_loss: {}'.format(loss))
-
+        print('loss: {}'.format(loss))
         loss.backward()
+
+        loss_SUM += loss.item()
 
         self.optimizer.step()
 
@@ -147,8 +148,8 @@ class ComposedRegressiveNetwork(Module):
 
           val_loss = self.compute_loss_value(val_loss)
 
-          print('val_loss: {}'.format(loss))
-      print('----------------------------------------------')
+          val_loss_SUM += val_loss
+
           
 
   def compute_loss_value(self, loss):
@@ -167,16 +168,18 @@ class ComposedRegressiveNetwork(Module):
       
     return true_vectors
 
-  def compute_loss(self, projectors_output, true_vectors):
-    '''projectors_output are batched projectors outputs'''
-    
+  def initialize_loss_manager(self):
     loss_keyword = self.config['2-SPACE MODULES CONFIGS']['LOSS']
     
     loss_config = self.config[loss_keyword]['Class']
 
-    loss_manager = self.losses_factory[loss_config](self.config)
+    self.loss_manager = self.losses_factory[loss_config](self.config)
 
-    return loss_manager.compute_loss(true_vectors, projectors_output)
+  def compute_loss(self, projectors_output, true_vectors):
+    '''projectors_output are batched projectors outputs'''
+    
+
+    return self.loss_manager.compute_loss(true_vectors, projectors_output)
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
@@ -237,6 +240,9 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
     return projections, classifier_output
 
   def train_(self, train_loader, val_loader):
+    loss_SUM = 0
+    val_loss_SUM = 0
+
     for e in range(self.epochs):
       print('epoch: {}'.format(e + 1))
       for data in train_loader: 
@@ -255,17 +261,16 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
         classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
 
-        # print('loss: {}'.format(loss))
-        # print('classifier_loss: {}'.format(classifier_loss))
-
         total_loss = self.compute_loss_value(loss, classifier_loss)
         
+        print('loss: {}'.format(total_loss))
         print('classifier_loss: {}'.format(classifier_loss))
-        print('total_loss: {}'.format(total_loss))
-
+        
         total_loss.backward()
 
         self.optimizer.step()
+
+        loss_SUM += total_loss.item()
 
       with torch.no_grad():
         self.eval()
@@ -288,13 +293,7 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
           val_loss = self.compute_loss_value(val_loss, classifier_loss)
 
-          print('classifier_val_loss: {}'.format(classifier_loss))
-
-          print('val_loss: {}'.format(val_loss))
-      print('----------------------------------------------')
-          
-
-
+          val_loss_SUM += val_loss
 
   def compute_loss_value(self, loss, classifier_loss):
     mean_losses = [torch.mean(v) for v in loss.values()]

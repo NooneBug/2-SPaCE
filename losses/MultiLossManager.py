@@ -13,9 +13,12 @@ class MultiLossManager():
     loss_classes = self.get_classes(config)
 
     self.losses = {k:l(config) for k, l in loss_classes.items()}
+    
+    self.weights = {k:float(v) for k, v in zip(loss_classes.keys(), self.conf['weights'].split(' '))}
 
   def compute_loss(self, true_vectors, projection_output):
     losses_values = {k:l.compute_loss(true_vectors[k], projection_output[k]) for k, l in self.losses.items()}
+    losses_values = {k: v * self.weights[k] for k, v in losses_values.items()}
     return losses_values
 
   def get_classes(self, conf):
