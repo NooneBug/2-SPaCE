@@ -19,10 +19,9 @@ dataset_parsers_dict = {
 
 def get_parsed_datasets(config):
 
-  WORD_EMBEDDING_CONFIG = config['DEFAULT']['WORD_EMBEDDING_CONFIG']
-  TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
+  # Get train dataset
 
-  dataset = parse_dataset(path = config[WORD_EMBEDDING_CONFIG]["DATASET_PATH"])
+  dataset = parse_dataset(path = config['DEFAULT']['TRAIN_DATASET_PATH'])
 
   word_embeddings, type_embeddings = obtain_embeddings(config=config)
 
@@ -32,7 +31,16 @@ def get_parsed_datasets(config):
 
   configuration_dataset = specific_dataset_parser.cast_dataset(dataset, encoded_dataset, config)
 
-  return configuration_dataset, word_embeddings, type_embeddings, encoded_dataset, dataset
+
+  # Get val dataset
+
+  val_dataset = parse_dataset(path=config['DEFAULT']['VAL_DATASET_PATH'])
+  encoded_val_dataset = get_encoded_dataset(dataset, word_embeddings, type_embeddings, config)
+  configuration_val_dataset = specific_dataset_parser.cast_dataset(val_dataset, encoded_val_dataset, config)
+
+  return configuration_dataset, word_embeddings, type_embeddings, configuration_val_dataset
+
+
 
 
 def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):

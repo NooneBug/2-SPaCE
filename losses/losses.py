@@ -25,7 +25,7 @@ class HyperbolicDistanceLoss(Loss):
     pass
 
   def acosh(self, x):
-        return torch.log(x + torch.sqrt(x**2-1))
+        return torch.log(x + torch.sqrt(x**2 - 1))
 
   def compute_loss(self, true, pred):
     numerator = 2 * torch.norm(true - pred, dim = 1)**2
@@ -35,10 +35,10 @@ class HyperbolicDistanceLoss(Loss):
 
     left_denom = 1 - pred_norm
     right_denom = 1 - true_norm
-    
+
     denom = left_denom * right_denom
 
-    frac = numerator/denom + 1
+    frac = numerator/denom
 
     acos = self.acosh(1  + frac)
     

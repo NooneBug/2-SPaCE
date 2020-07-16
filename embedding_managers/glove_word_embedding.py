@@ -8,7 +8,7 @@ class glove_word_embedding(Embedding):
   def __init__(self):
     self.token2vec = {}
     self.token2idx_dict = {}
-		self.unknown_token = 'UNK'
+    self.unknown_token = 'UNK'
 
   def generate_lookup_network(self, padding_idx = None):
     if type(padding_idx) == int:
@@ -45,9 +45,9 @@ class glove_word_embedding(Embedding):
         continue
       self.add(token, torch.Tensor(vec))
 
-		self.add(self.unknown_token, torch.zeros(size= len(vec)))
+    self.add(self.unknown_token, torch.zeros(size= (len(vec),)))
     
-		self.create_id2token()
+    self.create_id2token()
   
   def add(self, token, vector):
     self.token2vec[token] = vector
@@ -61,7 +61,7 @@ class glove_word_embedding(Embedding):
     if word in self.token2vec:
       return self.token2vec[word]
     else:
-			return self.token2vec[self.unknown_token]
+      return self.token2vec[self.unknown_token]
       # raise Exception('Word {} not present in embeddings'.format(word))
 
   def __contains__(self, word):

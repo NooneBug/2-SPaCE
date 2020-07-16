@@ -27,6 +27,7 @@ class ComposedRegressiveNetwork(Module):
 
     self.config = config
     self.define_factory()
+    self.set_parameters()
 
     self.word_lookup = word_lookup
 
@@ -37,6 +38,9 @@ class ComposedRegressiveNetwork(Module):
     self.common_module = self.get_network_class('DEEP_NETWORK')(config)
 
     self.projectors = self.get_network_class('PROJECTORS')(config)
+
+  def set_parameters(self):
+    self.epochs = int(self.config['TRAINING_PARAMETERS']['epochs'])
   
   def set_optimizer(self, config):
     nametag = 'TRAINING_PARAMETERS'
@@ -68,7 +72,7 @@ class ComposedRegressiveNetwork(Module):
       'riemannianAdamOptimizer': RiemannianAdamOptimizer
     }
   
-  def get_DataLoader(self, dataset, batch_size, shuffle):
+  def get_DataLoader(self, dataset, batch_size, shuffle = False):
     dl = self.dataLoader_factory[self.config[self.config['2-SPACE MODULES CONFIGS']['WORD_MANIPULATION_MODULE']]['DATALOADER_CLASS']](dataset)
 
     return DataLoader(dl, batch_size=batch_size , shuffle=shuffle)
@@ -85,40 +89,75 @@ class ComposedRegressiveNetwork(Module):
 
     input_vec = torch.cat((mention_vec, context_vec), dim=1)
     # print(mention_vec)
-    print('mention shape: {}'.format(mention_vec.shape))
-    print('context shape: {}'.format(context_vec.shape))
-    print('input shape: {}'.format(input_vec.shape))
+    # print('mention shape: {}'.format(mention_vec.shape))
+    # print('context shape: {}'.format(context_vec.shape))
+    # print('input shape: {}'.format(input_vec.shape))
 
     common_output = self.common_module(input_vec)
 
-    print('common_output shape: {}'.format(common_output.shape))
+    # print('common_output shape: {}'.format(common_output.shape))
 
     projections = self.projectors(common_output)
 
-    print('projetions keys: {}'.format([k for k in projections]))
-    print('projections shapes: {}'.format([p.shape for p in projections.values()]))
+    # print('projetions keys: {}'.format([k for k in projections]))
+    # print('projections shapes: {}'.format([p.shape for p in projections.values()]))
 
     return projections
 
-  def train_(self, dataloader):
+  def train_(self, train_loader, val_loader):
     
-    for data in dataloader:  
-      
-      self.optimizer.zero_grad()
-      self.train()
+    for e in range(self.epochs):
+      print('epoch: {}'.format(e))
+      for data in train_loader:  
+        
+        
+        self.optimizer.zero_grad()
+        self.train()
 
-      model_output = self(data)
+        model_output = self(data)
 
-      print('model_output: {}'.format(model_output))
+        # print('model_output: {}'.format(model_output))
 
-      labels = data[5]
-      true_vectors = self.get_true_vectors(labels)
+        labels = data[5]
+        true_vectors = self.get_true_vectors(labels)
 
-      loss = self.compute_loss(model_output, true_vectors)
+        loss = self.compute_loss(model_output, true_vectors)
 
-      loss.backward()
+        # print('loss: {}'.format(loss))
 
-      self.optimizer.step()
+        loss = self.compute_loss_value(loss)
+
+        print('aggregated_loss: {}'.format(loss))
+
+        loss.backward()
+
+        self.optimizer.step()
+
+      with torch.no_grad():
+        self.eval()
+
+        for data in val_loader:  
+        
+          model_output = self(data)
+
+          labels = data[5]
+          true_vectors = self.get_true_vectors(labels)
+
+          val_loss = self.compute_loss(model_output, true_vectors)
+
+          val_loss = self.compute_loss_value(val_loss)
+
+          print('val_loss: {}'.format(loss))
+      print('----------------------------------------------')
+          
+
+  def compute_loss_value(self, loss):
+    mean_losses = [torch.mean(v) for v in loss.values()]
+
+    loss_sum = sum(mean_losses)
+
+    return loss_sum
+
 
   def get_true_vectors(self, labels):
     true_vectors = {}
@@ -172,65 +211,93 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
     input_vec = torch.cat((mention_vec, context_vec), dim=1)
     
-    print('mention shape: {}'.format(mention_vec.shape))
-    print('context shape: {}'.format(context_vec.shape))
-    print('input shape: {}'.format(input_vec.shape))
+    # print('mention shape: {}'.format(mention_vec.shape))
+    # print('context shape: {}'.format(context_vec.shape))
+    # print('input shape: {}'.format(input_vec.shape))
 
     common_output = self.common_module(input_vec)
 
-    print('common_output shape: {}'.format(common_output.shape))
+    # print('common_output shape: {}'.format(common_output.shape))
 
     projections = self.projectors(common_output)
 
-    print('projetions keys: {}'.format([k for k in projections]))
-    print('projections shapes: {}'.format([p.shape for p in projections.values()]))
+    # print('projetions keys: {}'.format([k for k in projections]))
+    # print('projections shapes: {}'.format([p.shape for p in projections.values()]))
 
     projections_concat = torch.cat(tuple([p for p in projections.values()]), dim=-1)
 
     classifier_input = torch.cat((common_output, projections_concat), dim = -1)
 
-    print('classifier input shape: {}'.format(classifier_input.shape))
+    # print('classifier input shape: {}'.format(classifier_input.shape))
 
     classifier_output = self.classifier(classifier_input)
 
-    print('classifier output shape: {}'.format(classifier_output.shape))
+    # print('classifier output shape: {}'.format(classifier_output.shape))
 
     return projections, classifier_output
 
-  def train_(self, dataloader):
-    
-    for data in dataloader: 
+  def train_(self, train_loader, val_loader):
+    for e in range(self.epochs):
+      print('epoch: {}'.format(e + 1))
+      for data in train_loader: 
 
-      self.optimizer.zero_grad()
-      self.train()
+        self.optimizer.zero_grad()
+        self.train()
 
-      regression_output, classifier_output = self(data)
+        regression_output, classifier_output = self(data)
 
-      labels = data[5]
-      true_vectors = self.get_true_vectors(labels)
+        labels = data[5]
+        true_vectors = self.get_true_vectors(labels)
 
-      loss = self.compute_loss(regression_output, true_vectors)
+        loss = self.compute_loss(regression_output, true_vectors)
 
-      OH_labels = self.get_OneHot_labels(labels)
+        OH_labels = self.get_OneHot_labels(labels)
 
-      classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
+        classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
 
-      print('loss: {}'.format(loss))
-      print('classifier_loss: {}'.format(classifier_loss))
+        # print('loss: {}'.format(loss))
+        # print('classifier_loss: {}'.format(classifier_loss))
 
-      total_loss = self.compute_loss_value(loss, classifier_loss)
+        total_loss = self.compute_loss_value(loss, classifier_loss)
+        
+        print('classifier_loss: {}'.format(classifier_loss))
+        print('total_loss: {}'.format(total_loss))
 
-      print('total_loss: {}'.format(total_loss))
+        total_loss.backward()
 
-      total_loss.backward()
+        self.optimizer.step()
 
-      self.optimizer.step()
+      with torch.no_grad():
+        self.eval()
+
+        for data in val_loader:  
+        
+          model_output, classifier_output = self(data)
+
+          labels = data[5]
+          true_vectors = self.get_true_vectors(labels)
+
+          val_loss = self.compute_loss(model_output, true_vectors)
+
+          OH_labels = self.get_OneHot_labels(labels)
+
+          classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
+
+          # print('loss: {}'.format(loss))
+          # print('classifier_loss: {}'.format(classifier_loss))
+
+          val_loss = self.compute_loss_value(val_loss, classifier_loss)
+
+          print('classifier_val_loss: {}'.format(classifier_loss))
+
+          print('val_loss: {}'.format(val_loss))
+      print('----------------------------------------------')
+          
+
 
 
   def compute_loss_value(self, loss, classifier_loss):
     mean_losses = [torch.mean(v) for v in loss.values()]
-
-    print('mean losses : {}'.format(mean_losses))
 
     loss_sum = sum(mean_losses)
 
