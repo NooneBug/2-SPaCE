@@ -103,7 +103,7 @@ class ComposedRegressiveNetwork(Module):
     # print('projetions keys: {}'.format([k for k in projections]))
     # print('projections shapes: {}'.format([p.shape for p in projections.values()]))
 
-    return projections
+    return {'projections': projections}
 
   def train_(self, train_loader, val_loader):
     
@@ -150,7 +150,7 @@ class ComposedRegressiveNetwork(Module):
 
           val_loss_SUM += val_loss
 
-          
+		return self          
 
   def compute_loss_value(self, loss):
     mean_losses = [torch.mean(v) for v in loss.values()]
@@ -179,7 +179,7 @@ class ComposedRegressiveNetwork(Module):
     '''projectors_output are batched projectors outputs'''
     
 
-    return self.loss_manager.compute_loss(true_vectors, projectors_output)
+    return self.loss_manager.compute_loss(true_vectors['projections'], projectors_output)
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
@@ -237,7 +237,7 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
     # print('classifier output shape: {}'.format(classifier_output.shape))
 
-    return projections, classifier_output
+    return {'projections': projections, 'classifier_output': classifier_output}
 
   def train_(self, train_loader, val_loader):
     loss_SUM = 0
@@ -250,16 +250,16 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
         self.optimizer.zero_grad()
         self.train()
 
-        regression_output, classifier_output = self(data)
+        model_output = self(data)
 
         labels = data[5]
         true_vectors = self.get_true_vectors(labels)
 
-        loss = self.compute_loss(regression_output, true_vectors)
+        loss = self.compute_loss(model_output, true_vectors)
 
         OH_labels = self.get_OneHot_labels(labels)
 
-        classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
+        classifier_loss = self.compute_classifier_loss(model_output, OH_labels)
 
         total_loss = self.compute_loss_value(loss, classifier_loss)
         
@@ -277,7 +277,7 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
         for data in val_loader:  
         
-          model_output, classifier_output = self(data)
+          model_output = self(data)
 
           labels = data[5]
           true_vectors = self.get_true_vectors(labels)
@@ -286,7 +286,7 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
           OH_labels = self.get_OneHot_labels(labels)
 
-          classifier_loss = self.compute_classifier_loss(classifier_output, OH_labels)
+          classifier_loss = self.compute_classifier_loss(model_output, OH_labels)
 
           # print('loss: {}'.format(loss))
           # print('classifier_loss: {}'.format(classifier_loss))
@@ -314,12 +314,12 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
     return out
 
-  def compute_loss(self, regression_output, true_vectors):
-    loss_keyword = self.config['2-SPACE MODULES CONFIGS']['LOSS']
-    loss_config = self.config[loss_keyword]['Class']
-    loss_manager = self.losses_factory[loss_config](self.config)
+  # def compute_loss(self, regression_output, true_vectors):
+  #   loss_keyword = self.config['2-SPACE MODULES CONFIGS']['LOSS']
+  #   loss_config = self.config[loss_keyword]['Class']
+  #   loss_manager = self.losses_factory[loss_config](self.config)
 
-    return loss_manager.compute_loss(true_vectors, regression_output)
+  #   return loss_manager.compute_loss(true_vectors, regression_output)
 
   def compute_classifier_loss(self, classifier_output, true_labels):
-    return self.classifier.compute_loss(classifier_output, true_labels)
+    return self.classifier.compute_loss(classifier_output['classifier_output'], true_labels)
