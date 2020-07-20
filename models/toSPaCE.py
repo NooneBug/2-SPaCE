@@ -182,14 +182,14 @@ class ComposedRegressiveNetwork(Module):
 
     return self.loss_manager.compute_loss(true_vectors, projectors_output['projections'])
 
-  def evaluate(self, testLoader):
+  def evaluate(self, testLoader, folderName):
     test_pred, true_labels = self.get_test_predictions_and_labels(testLoader)
 
     evaluator = RegressionEvaluator(predictions= test_pred, 
                               labels = true_labels, 
-                              type_lookup = type_lookup)
+                              type_lookup = self.type_lookup)
 
-    evaluator.evaluate()
+    evaluator.evaluate(folderName)
 
   def get_test_predictions_and_labels(self, testLoader):
     all_labels = []
@@ -197,13 +197,13 @@ class ComposedRegressiveNetwork(Module):
       pred = self(data)
       print('pred: {}'.format(pred))
       if i == 0:
-        all_predictions = {k: v.detach().cpu().numpy() for k, v in pred.items()}
+        all_predictions = {k: v.detach().cpu().numpy() for k, v in pred['projections'].items()}
       else:
         pred = self(data)
         for k, v in pred.items():
           all_predictions[k].extend(v.detach().cpu().numpy())
-      all_labels = torch.cat((all_labels, data[5].detach().cpu().numpy()))
-    return np.array(all_predictions), np.array(all_labels)
+      all_labels.extend(data[5].detach().cpu().numpy())
+    return all_predictions, np.array(all_labels)
 
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
