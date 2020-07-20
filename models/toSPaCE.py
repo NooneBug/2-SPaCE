@@ -17,7 +17,10 @@ from torch.nn import Module
 
 from torch.utils.data import DataLoader
 
+from evaluation_routines.evaluators import RegressionEvaluator, ClassifierEvaluator
+
 import torch
+import numpy as np
 
 class ComposedRegressiveNetwork(Module):
 
@@ -111,9 +114,7 @@ class ComposedRegressiveNetwork(Module):
     val_loss_SUM = 0
 
     for e in range(self.epochs):
-      for data in train_loader:  
-        
-        
+      for data in train_loader:
         self.optimizer.zero_grad()
         self.train()
 
@@ -150,7 +151,7 @@ class ComposedRegressiveNetwork(Module):
 
           val_loss_SUM += val_loss
 
-		return self          
+    return self          
 
   def compute_loss_value(self, loss):
     mean_losses = [torch.mean(v) for v in loss.values()]
@@ -179,7 +180,31 @@ class ComposedRegressiveNetwork(Module):
     '''projectors_output are batched projectors outputs'''
     
 
-    return self.loss_manager.compute_loss(true_vectors['projections'], projectors_output)
+    return self.loss_manager.compute_loss(true_vectors, projectors_output['projections'])
+
+  def evaluate(self, testLoader):
+    test_pred, true_labels = self.get_test_predictions_and_labels(testLoader)
+
+    evaluator = RegressionEvaluator(predictions= test_pred, 
+                              labels = true_labels, 
+                              type_lookup = type_lookup)
+
+    evaluator.evaluate()
+
+  def get_test_predictions_and_labels(self, testLoader):
+    all_labels = []
+    for i, data in enumerate(testLoader):
+      pred = self(data)
+      print('pred: {}'.format(pred))
+      if i == 0:
+        all_predictions = {k: v.detach().cpu().numpy() for k, v in pred.items()}
+      else:
+        pred = self(data)
+        for k, v in pred.items():
+          all_predictions[k].extend(v.detach().cpu().numpy())
+      all_labels = torch.cat((all_labels, data[5].detach().cpu().numpy()))
+    return np.array(all_predictions), np.array(all_labels)
+
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
@@ -294,6 +319,7 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
           val_loss = self.compute_loss_value(val_loss, classifier_loss)
 
           val_loss_SUM += val_loss
+    return self
 
   def compute_loss_value(self, loss, classifier_loss):
     mean_losses = [torch.mean(v) for v in loss.values()]
@@ -323,3 +349,34 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
   def compute_classifier_loss(self, classifier_output, true_labels):
     return self.classifier.compute_loss(classifier_output['classifier_output'], true_labels)
+
+  def evaluate(self, testLoader, folderName):
+    test_vector_pred, test_classifier_pred, true_labels = self.get_test_predictions_and_labels(testLoader)
+
+    evaluator = RegressionEvaluator(predictions= test_vector_pred, 
+                              labels = true_labels, 
+                              type_lookup = self.type_lookup)
+
+
+    evaluator.evaluate(folderName)
+
+    evaluator = ClassifierEvaluator(predictions = test_classifier_pred,
+                                    labels = true_labels,
+                                    type_lookup = self.type_lookup)
+    
+    evaluator.evaluate(folderName)
+
+  def get_test_predictions_and_labels(self, testLoader):
+    all_labels = []
+    for i, data in enumerate(testLoader):
+      pred = self(data)
+      # print('pred: {}'.format(pred))
+      if i == 0:
+        all_vector_predictions = {k: v.detach().cpu().numpy() for k, v in pred['projections'].items()}
+        all_classifier_predictions = [pred['classifier_output'].detach().cpu().numpy()]
+      else:
+        for k, v in pred['projections'].items():
+          all_vector_predictions[k].extend(v.detach().cpu().numpy())
+        all_classifier_predictions.extend(pred['classifier_output']).detach().cpu().numpy()
+      all_labels.extend(data[5].detach().cpu().numpy())
+    return all_vector_predictions, all_classifier_predictions[0], np.array(all_labels)

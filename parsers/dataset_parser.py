@@ -38,7 +38,7 @@ def get_parsed_datasets(config):
   encoded_val_dataset = get_encoded_dataset(val_dataset, word_embeddings, type_embeddings, config)
   configuration_val_dataset = specific_dataset_parser.cast_dataset(val_dataset, encoded_val_dataset, config)
 
-	test_dataset = parse_dataset(path=config['DEFAULT']['TEST_DATASET_PATH'])
+  test_dataset = parse_dataset(path=config['DEFAULT']['TEST_DATASET_PATH'])
   encoded_test_dataset = get_encoded_dataset(test_dataset, word_embeddings, type_embeddings, config)
   configuration_test_dataset = specific_dataset_parser.cast_dataset(test_dataset, encoded_test_dataset, config)
 

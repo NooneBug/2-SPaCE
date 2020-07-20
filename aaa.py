@@ -1,9 +1,9 @@
 # %%
-from losses.losses import HyperbolicDistanceLoss
-import torch
-h = HyperbolicDistanceLoss('config')
 
-a = torch.tensor([[0.2, 0.2]])
+import numpy as np
 
-h.compute_loss(a, a)
+
+a = np.array([2, 0, 1])
+
+sorted(range(len(a)), key=lambda k: a[k])
 # %%

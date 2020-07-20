@@ -3,3 +3,4 @@ embedding_managers/__pycache__/
 parsers/__pycache__/
 **.pyc
 *.pyc
+results/

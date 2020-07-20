@@ -11,7 +11,7 @@ class Type2VecEmbeddingManager(Embedding):
     # print('label: {}'.format(label))
     # print('embeddings: {}'.format(self.embeddings))
     if label in self.embeddings:
-      return self.token2vec[label]
+        return self.embeddings[label]
     else:
       raise Exception('label {} not present in embeddings'.format(label))
 
@@ -29,6 +29,7 @@ class Type2VecEmbeddingManager(Embedding):
 
     lookup_network.model.weight.data.copy_(weights)
     lookup_network.model.weight.requires_grad = False
+
     
     return lookup_network
 
@@ -44,3 +45,6 @@ class Type2VecEmbeddingManager(Embedding):
 
   def get_vec(self, token):
     return self.embeddings[token]
+
+  def get_ordered_typelist(self):
+    return list(self.embeddings.keys())

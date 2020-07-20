@@ -71,7 +71,10 @@ class glove_word_embedding(Embedding):
     self.id2token_dict = {v:k for k, v in self.token2idx_dict.items()}
 
   def token2idx(self, token):
-    return self.token2idx_dict[token]
+    if token in self.token2vec:
+      return self.token2idx_dict[token]
+    else:
+      return self.token2idx_dict[self.unknown_token]
 
   def idx2token(self, idx):
     if idx != self.padding_idx:

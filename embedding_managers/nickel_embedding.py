@@ -14,7 +14,7 @@ class NickelEmbedding(Embedding):
     # print('label: {}'.format(label))
     # print('embeddings: {}'.format(self.embeddings))
     if label in self.embeddings:
-      return self.token2vec[label]
+      return self.embeddings[label]
     else:
       raise Exception('label {} not present in embeddings'.format(label))
 
@@ -44,5 +44,5 @@ class NickelEmbedding(Embedding):
   def idx2token(self, id):
     return self.idx2token_dict[id]
 
-  def get_vec(self, token):
-    return self.embeddings[token]
+  def get_ordered_typelist(self):
+    return list(self.embeddings.keys())

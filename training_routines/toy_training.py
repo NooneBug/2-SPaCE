@@ -1,27 +1,50 @@
 from models.model_generator import generate_composed_model
 from parsers.dataset_parser import get_parsed_datasets
 from models.lookup_models.lookup_networks import LookupNetwork
-from evaluation_routines.evaluationClass import MultiEvaluatorManager
+from datetime import date
+import os
+
+def get_today():
+	return date.today().strftime('%m_%d_%Y')
+
 
 TRAIN_CONFIG = 'TRAINING_PARAMETERS'
 
-evaluator_factory = {
-	'MultiEvaluatorManager': MultiEvaluatorManager
-} 
+def setup_result_folder(config):
+	if config['DEFAULT']['RESULT_FILE'] == 'auto':
+		foldername = config['DEFAULT']['RESULT_FOLDER'] + get_today()
+	else:
+		foldername = config['DEFAULT']['RESULT_FOLDER'] + config['DEFAULT']['RESULT_FILE']
+	can_exit = False
+	foldername = foldername + '_0'
+	i = 0
+	while not can_exit:
+		if not os.path.exists(foldername):
+			os.mkdir(foldername)
+			can_exit = True
+		else:
+			foldername = '_'.join(foldername.split('_')[:3])
+			i += 1
+			foldername = foldername + '_{}'.format(i)
+		
+	return foldername
+
+def initialize_folder(foldername, config):
+	with open(foldername + '/config.ini', 'w') as out:
+		config.write(out)
 
 def evaluate(trained_model, testLoader, config):
+	foldername = setup_result_folder(config)
+	initialize_folder(foldername, config)
+	trained_model.evaluate(testLoader, foldername)
 
-	evaluator_class = config[config['2-SPACE MODULES CONFIGS']['EVALUATOR']]['CLASS']
-	evaluator = evaluator_factory[evaluator_class](model = model, testLoader = testLoader, config = config)
-	evaluator.evaluate()
-	
 def train(trainLoader, valLoader, model, config):
 	# print(model)
 
 	return training_routine(trainLoader, valLoader, model)
 
 def training_routine(train_loader, val_loader, model):
-	model.train_(train_loader, val_loader)
+	return model.train_(train_loader, val_loader)
 
 def get_datas_and_model(config):
 	configuration_dataset, word_embedding, type_embedding, val_dataset, test_dataset = get_parsed_datasets(config)
