@@ -10,6 +10,7 @@ if __name__ == "__main__":
 
   config = configparser.ConfigParser()
 
+  # config.read("toy_config.ini")
   config.read("config.ini")
 
   main(config)

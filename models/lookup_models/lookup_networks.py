@@ -22,12 +22,15 @@ class LookupNetwork(Module):
 		for i, entry in enumerate(input_batch):
 			ret = []
 			for j, idx in enumerate(entry):
-				if idx == self.no_label_idx:
-					ret.append(torch.zeros(size = (self.embedding_dim,)))
+				if idx.item() == self.no_label_idx:
+					ret.append(torch.zeros(size = (self.embedding_dim,)).cuda())
 				else:
 					# idx = idx.clone().cuda()
-					ret.append(self.model(idx).detach().cpu().numpy())
-			batch.append(ret)
-		return torch.tensor(batch).cuda()
-			
+					# print('idx : {}'.format(idx))
+					ret.append(self.model(idx))
+			batch.append(torch.stack(ret))
+		return torch.stack(batch).cuda()
+		
+	# def forward(self, input_batch):
+	# 	return self.model(input_batch)
 	

@@ -1,14 +1,2 @@
-{
-    "datas":[{
-                "left_context_tokens": ["I", "like"],
-                "mention": "cats", 
-                "right_context_tokens": ["and", "other", "animals"], 
-                "labels": ["animal"]
-            },
-            {
-                "left_context_tokens": ["I", "want", "to", "live", "in"],
-                "mention": "New York", 
-                "right_context_tokens": [], 
-                "labels": ["location", "city"] 
-            }]
-}
+{"left_context_tokens": ["I", "like"], "mention": "cats", "right_context_tokens": ["and", "other", "animals"], "labels": ["animal"]}
+{"left_context_tokens": ["I", "want", "to", "live", "in"], "mention": "New York", "right_context_tokens": [], "labels": ["location", "city"]}

@@ -33,9 +33,7 @@ def initialize_folder(foldername, config):
 	with open(foldername + '/config.ini', 'w') as out:
 		config.write(out)
 
-def evaluate(trained_model, testLoader, config):
-	foldername = setup_result_folder(config)
-	initialize_folder(foldername, config)
+def evaluate(trained_model, testLoader, foldername):
 	trained_model.evaluate(testLoader, foldername)
 
 def train(trainLoader, valLoader, model, config):
@@ -46,7 +44,7 @@ def train(trainLoader, valLoader, model, config):
 def training_routine(train_loader, val_loader, model):
 	return model.train_(train_loader, val_loader)
 
-def get_datas_and_model(config):
+def get_datas_and_model(config, foldername):
 	configuration_dataset, word_embedding, type_embedding, val_dataset, test_dataset = get_parsed_datasets(config)
 
 	if config.has_option(section = config['2-SPACE MODULES CONFIGS']['WORD_MANIPULATION_MODULE'], 
@@ -58,8 +56,10 @@ def get_datas_and_model(config):
 
 	type_embedding_lookup = type_embedding.generate_lookup_network()
 
+	print('building model')
 	model = generate_composed_model(word_embedding_lookup=word_embedding_lookup,
 																	type_embedding_lookup=type_embedding_lookup,
+																	foldername = foldername,
 																	config = config)
 
 	model.set_optimizer(config)
@@ -68,7 +68,7 @@ def get_datas_and_model(config):
 
 	# print('--------------------')
 	# print('configuration_dataset: {}'.format(configuration_dataset))
-
+	print('preparing dataloaders')
 	trainLoader = model.get_DataLoader(dataset = configuration_dataset, 
 																			batch_size = int(train_config['train_batch_size']), 
 																			shuffle = bool(train_config['shuffle']))
@@ -87,8 +87,15 @@ def get_datas_and_model(config):
 
 
 def routine(config):
-	trainLoader, valLoader, testLoader, model = get_datas_and_model(config)
+	
+	foldername = setup_result_folder(config)
+
+	initialize_folder(foldername, config)
+	print('folder setted up')
+	
+	trainLoader, valLoader, testLoader, model = get_datas_and_model(config, foldername)
+	print('dataloaders and models did')
 
 	trained_model = train(trainLoader, valLoader, model, config)
 
-	evaluate(trained_model, testLoader, config)
+	evaluate(trained_model, testLoader, foldername)

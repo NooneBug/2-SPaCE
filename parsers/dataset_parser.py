@@ -4,6 +4,9 @@ from embedding_managers.glove_word_embedding import glove_word_embedding
 from embedding_managers.multi_type_embedding_manager import MultiEmbeddingManager
 from parsers.ShimaokaParser import ShimaokaParser
 from random import sample
+from common.utils import load_data_with_pickle, save_data_with_pickle
+import time
+from tqdm import tqdm
 
 # WORD_EMBEDDING_CONFIG = "GLOVE"
 # TYPE_EMBEDDING_CONFIG = "MultiTypeEmbedding"
@@ -52,7 +55,7 @@ def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
   config_default_dict = config['DEFAULT']
   encoded_dataset = []
   # print(word_embeddings.token2idx_dict)
-  for d in dataset:
+  for d in tqdm(dataset, desc='encoding dataset'):
     encoded_entry = {}
     # print('------------------------------')
     # print('original entry: {}'.format(d))
@@ -72,31 +75,33 @@ def get_encoded_dataset(dataset, word_embeddings, type_embeddings, config):
       encoded_entry[field] = [type_embeddings.token2idx(l) for l in labels]
 
     # print('encoded_entry: {}'.format(encoded_entry))
-
+    
     encoded_dataset.append(encoded_entry)
   # print(encoded_dataset)
-
+  print('\t {} types not present in the embeddings'.format(len(type_embeddings.types_not_in_embeddings)))
   TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
 
   if config.has_option(section = TYPE_EMBEDDING_CONFIG, 
                         option = 'PADDING_INDEX'):
-    encoded_dataset = uniform_labels_number(encoded_dataset, int(config[TYPE_EMBEDDING_CONFIG]['PADDING_INDEX']))
+    encoded_dataset = uniform_labels_number(encoded_dataset, int(config[TYPE_EMBEDDING_CONFIG]['PADDING_INDEX']), config)
 
   return encoded_dataset
 
 
-def uniform_labels_number(encoded_dataset, padding_index):
-
-  labels = [l['labels'] for l in encoded_dataset]
+def uniform_labels_number(encoded_dataset, padding_index, config):
+  label_keyword = config['DEFAULT']['LABELS']
+  labels = [l[label_keyword] for l in encoded_dataset]
 
   max_labels = max([len(l) for l in labels])
 
+  print('uniforming label number to {} labels for each entry'.format(max_labels))
 
-  for i, l in enumerate(encoded_dataset):
-    uniformed_entry = l['labels']
+
+  for i, l in enumerate(tqdm(encoded_dataset)):
+    uniformed_entry = l[label_keyword]
     while len(uniformed_entry) < max_labels:
       uniformed_entry.append(sample(uniformed_entry, 1)[0])
-    encoded_dataset[i]['labels'] = uniformed_entry
+    encoded_dataset[i][label_keyword] = uniformed_entry
   
   return encoded_dataset
 
@@ -106,11 +111,23 @@ def obtain_embeddings(config):
   print('-----------------------------------------------------------------------------------')
   
   WORD_EMBEDDING_CONFIG = config['DEFAULT']['WORD_EMBEDDING_CONFIG']
-
-  word_embeddings = classes_dict[WORD_EMBEDDING_CONFIG]()
-
-  word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
   
+  load_embeddings_routine = config[WORD_EMBEDDING_CONFIG]['LOAD_EMBEDDING_ROUTINE']
+
+  if load_embeddings_routine == 'load_embeddings':
+    word_embeddings = classes_dict[WORD_EMBEDDING_CONFIG]()
+    word_embeddings.load_from_file(config[WORD_EMBEDDING_CONFIG]["WORD_EMBEDDING_PATH"])
+    save_path = config[WORD_EMBEDDING_CONFIG]['save_path'] 
+    # save_data_with_pickle(save_path, word_embeddings)
+    
+  elif load_embeddings_routine == 'load_preloaded_class':
+    t = time.time()
+    path = config[WORD_EMBEDDING_CONFIG]['loading_path']
+    word_embeddings = load_word_embedding(path)
+    print('class loaded in {:.2f} seconds'.format(time.time() - t))
+  else:
+    raise Exception('set a valid "LOAD_EMBEDDING_ROUTINE"')
+
   TYPE_EMBEDDING_CONFIG = config['DEFAULT']['TYPE_EMBEDDING_CONFIG']
 
   if int(config['DEFAULT']['TYPE_SPACE_NUMBER']) >= 1:
@@ -129,6 +146,9 @@ def obtain_embeddings(config):
   #     print('\t{}:\t{}\n'.format(k2, v2))
 
   return word_embeddings, type_embeddings
+
+def load_word_embedding(path):
+  return load_data_with_pickle(path)
 
 def retrieve_multi_type_embeddings(config):
 
@@ -159,9 +179,19 @@ def get_paths_dict(names, paths):
 
 
 def parse_dataset(path):
+  print('parsing: {}'.format(path))
+  t = time.time()
+  data = []
   with open(path, 'r') as inp:
-    d = json.load(inp)
-  return d['datas']
+
+    lines = inp.readlines()
+
+    for l in tqdm(lines):
+      d = json.loads(l)
+      data.append(d)
+    # d = json.load(inp)
+  print('parsed in {:.2f} seconds'.format(time.time() - t))
+  return data
   
 if __name__ == "__main__":
   main()

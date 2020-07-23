@@ -4,3 +4,4 @@ parsers/__pycache__/
 **.pyc
 *.pyc
 results/
+datasets/

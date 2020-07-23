@@ -11,10 +11,11 @@ class Type2VecEmbeddingManager(Embedding):
     # print('label: {}'.format(label))
     # print('embeddings: {}'.format(self.embeddings))
     if label in self.embeddings:
-        return self.embeddings[label]
+      return self.embeddings[label]
     else:
+      # return torch.rand(self.get_vector_dim())
       raise Exception('label {} not present in embeddings'.format(label))
-
+  
   def get_embeddings_number(self):
     return len(self.embeddings)
 
@@ -23,6 +24,9 @@ class Type2VecEmbeddingManager(Embedding):
 
   def generate_lookup_network(self, padding_idx):
     
+    # while len(self.embeddings) != len(self.token2idx_dict):
+      # self.embeddings = torch.cat((self.embeddings, torch.rand(self.get_vector_dim())), 0)
+
     lookup_network = LookupNetwork(self, padding_idx=padding_idx)
     
     weights = torch.tensor([self.idx2vec(idx).numpy() for idx in range(self.get_embeddings_number())])
@@ -42,9 +46,6 @@ class Type2VecEmbeddingManager(Embedding):
 
   def idx2token(self, id):
     return self.idx2token_dict[id]
-
-  def get_vec(self, token):
-    return self.embeddings[token]
 
   def get_ordered_typelist(self):
     return list(self.embeddings.keys())

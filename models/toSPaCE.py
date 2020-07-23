@@ -21,10 +21,11 @@ from evaluation_routines.evaluators import RegressionEvaluator, ClassifierEvalua
 
 import torch
 import numpy as np
+from tqdm import tqdm
 
 class ComposedRegressiveNetwork(Module):
 
-  def __init__(self, config, word_lookup, type_lookup):
+  def __init__(self, config, word_lookup, type_lookup, foldername):
     
     super().__init__()
 
@@ -32,6 +33,7 @@ class ComposedRegressiveNetwork(Module):
     self.define_factory()
     self.set_parameters()
     self.initialize_loss_manager()
+    self.folder_name = foldername
 
     self.word_lookup = word_lookup
 
@@ -45,6 +47,9 @@ class ComposedRegressiveNetwork(Module):
 
   def set_parameters(self):
     self.epochs = int(self.config['TRAINING_PARAMETERS']['epochs'])
+    self.early_stopping = bool(self.config['TRAINING_PARAMETERS']['early_stopping'])
+    self.early_stopping_trigger = False
+    self.patience = int(self.config['TRAINING_PARAMETERS']['patience'])
   
   def set_optimizer(self, config):
     nametag = 'TRAINING_PARAMETERS'
@@ -112,8 +117,12 @@ class ComposedRegressiveNetwork(Module):
     
     loss_SUM = 0
     val_loss_SUM = 0
+    total_examples = 0
+    total_val_examples = 0
 
-    for e in range(self.epochs):
+    e = 0
+    while e < self.epochs and not self.early_stopping_trigger:
+      bar = tqdm(total = len(train_loader), desc='{}^ epoch: training'.format(e + 1))
       for data in train_loader:
         self.optimizer.zero_grad()
         self.train()
@@ -128,16 +137,19 @@ class ComposedRegressiveNetwork(Module):
         loss = self.compute_loss(model_output, true_vectors)
 
         loss = self.compute_loss_value(loss)
-        print('loss: {}'.format(loss))
         loss.backward()
 
         loss_SUM += loss.item()
+        total_examples += len(data)
+        
+        bar.update(1)
 
         self.optimizer.step()
 
       with torch.no_grad():
         self.eval()
-
+        bar.close()
+        bar = tqdm(total = len(val_loader), desc='{}^ epoch: validation'.format(e + 1))
         for data in val_loader:  
         
           model_output = self(data)
@@ -150,8 +162,43 @@ class ComposedRegressiveNetwork(Module):
           val_loss = self.compute_loss_value(val_loss)
 
           val_loss_SUM += val_loss
+          total_val_examples += len(data)
+          bar.update(1)
+
+        bar.close()
+      
+      self.print_stats(loss_SUM, val_loss_SUM, total_examples, total_val_examples)
+      self.early_stopping_routine(value = val_loss_SUM, epoch = e)
+      e += 1
+
 
     return self          
+
+  def print_stats(self, loss_value, val_loss_value, train_examples, val_examples):
+    print('\t train loss: {:.4f}\t val loss: {:.4f}\n'.format(loss_value/train_examples, 
+                                                            val_loss_value/val_examples))
+  
+  def early_stopping_routine(self, value, epoch):
+    if self.early_stopping:
+      if epoch == 0:
+        self.min_val_loss = value
+        self.best_epoch = epoch
+        self.save_model(epoch)
+      elif value <= self.min_val_loss:
+        self.best_epoch = epoch
+        self.save_model(epoch)
+      elif self.best_epoch + self.patience < epoch:
+        print('EarlyStopping')
+        self.early_stopping_trigger = True
+    print('\t best epoch: {}\n'.format(self.best_epoch))
+  
+  def save_model(self, epoch):
+    torch.save({
+                'model_state_dict' : self.state_dict(),
+                'epoch' : epoch 
+              }, 
+              self.folder_name + '/model.pth')
+    
 
   def compute_loss_value(self, loss):
     mean_losses = [torch.mean(v) for v in loss.values()]
@@ -208,8 +255,8 @@ class ComposedRegressiveNetwork(Module):
 
 class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
-  def __init__(self, config, word_lookup, type_lookup):
-    super().__init__(config, word_lookup, type_lookup)
+  def __init__(self, config, word_lookup, type_lookup, foldername):
+    super().__init__(config, word_lookup, type_lookup, foldername)
 
     self.nametag = 'CLASSIFIER'
     self.setup_factory()
@@ -268,8 +315,18 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
     loss_SUM = 0
     val_loss_SUM = 0
 
-    for e in range(self.epochs):
-      print('epoch: {}'.format(e + 1))
+    regression_loss_SUM = 0
+    classifier_loss_SUM = 0
+    
+    regression_val_loss_SUM = 0
+    classifier_val_loss_SUM = 0
+    
+    total_examples = 0
+    total_val_examples = 0
+
+    e = 0
+    while e < self.epochs and not self.early_stopping_trigger:
+      bar = tqdm(total = len(train_loader), desc='{}^ epoch: training'.format(e + 1))
       for data in train_loader: 
 
         self.optimizer.zero_grad()
@@ -288,18 +345,25 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
 
         total_loss = self.compute_loss_value(loss, classifier_loss)
         
-        print('loss: {}'.format(total_loss))
-        print('classifier_loss: {}'.format(classifier_loss))
+        # print('loss: {}'.format(total_loss))
+        # print('classifier_loss: {}'.format(classifier_loss))
         
         total_loss.backward()
 
         self.optimizer.step()
 
-        loss_SUM += total_loss.item()
+        # regression_loss_SUM += loss
+        classifier_loss_SUM += classifier_loss
 
+        loss_SUM += total_loss.item()
+        total_examples += len(data)
+
+        bar.update(1)
       with torch.no_grad():
         self.eval()
+        bar.close()
 
+        bar = tqdm(total = len(val_loader), desc='{}^ epoch: validation'.format(e + 1))
         for data in val_loader:  
         
           model_output = self(data)
@@ -316,10 +380,40 @@ class ComposedClassificationNetwork(ComposedRegressiveNetwork):
           # print('loss: {}'.format(loss))
           # print('classifier_loss: {}'.format(classifier_loss))
 
-          val_loss = self.compute_loss_value(val_loss, classifier_loss)
+          total_val_loss = self.compute_loss_value(val_loss, classifier_loss)
 
-          val_loss_SUM += val_loss
+          # regression_val_loss_SUM += val_loss
+          classifier_val_loss_SUM += classifier_loss
+          
+          val_loss_SUM += total_val_loss
+          total_val_examples += len(data)
+
+
+          bar.update(1)
+
+      bar.close()
+
+      self.print_stats(loss_SUM, val_loss_SUM, 
+                      # regression_loss_SUM, regression_val_loss_SUM,
+                      classifier_loss_SUM, classifier_val_loss_SUM,	
+                      total_examples, total_val_examples)
+      self.early_stopping_routine(value = val_loss_SUM, epoch = e)
+      e += 1
+
     return self
+
+  def print_stats(self, loss_SUM, val_loss_SUM, 
+                        # regression_loss_SUM, regression_val_loss_SUM,
+                        classifier_loss_SUM, classifier_val_loss_SUM,	
+                        total_examples, total_val_examples):
+
+    super().print_stats(loss_SUM, val_loss_SUM, total_examples, total_val_examples)
+
+    # print('\tregression_loss: {:.4f}\t regression_val_loss: {:.4f}\n'.format(regression_loss_SUM/total_examples,
+                                                                            # regression_val_loss_SUM/total_val_examples))
+
+    print('\tclassifeir_loss: {:.4f}\t classifier_val_loss: {:.4f}\n'.format(classifier_loss_SUM/total_examples,
+                                                                            classifier_val_loss_SUM, total_val_examples))
 
   def compute_loss_value(self, loss, classifier_loss):
     mean_losses = [torch.mean(v) for v in loss.values()]

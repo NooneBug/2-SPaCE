@@ -1,6 +1,7 @@
 from parsers.parser_interface import Parser
 from models.input_encoder_models.ShimaokaModel import CharEncoder
 import torch
+from tqdm import tqdm
 
 
 class ShimaokaParser(Parser):
@@ -28,6 +29,8 @@ class ShimaokaParser(Parser):
     self.conf[key] = cast_type(self.conf[key])
   
   def cast_dataset(self, dataset, encoded_dataset, config):
+    
+    print('casting dataset')
 
     config_default_dict = config['DEFAULT']
 
@@ -36,6 +39,7 @@ class ShimaokaParser(Parser):
 
     configuration_dataset = []
 
+    bar = tqdm(total=len(dataset))
     for entry, encoded_entry in zip(dataset, encoded_dataset):
       configuration_entry = []
 
@@ -45,6 +49,8 @@ class ShimaokaParser(Parser):
       labels = encoded_entry[config_default_dict['LABELS']]
 
       encoded_sentence = encoded_entry[config_default_dict['LEFT_CONTEXT']] + encoded_entry[config_default_dict['MENTION']] + encoded_entry[config_default_dict['RIGHT_CONTEXT']] 
+
+      encoded_sentence = encoded_sentence[:sentence_max_length] 
 
       sentence_length = torch.tensor([len(encoded_sentence)]).cuda()
       
@@ -73,17 +79,18 @@ class ShimaokaParser(Parser):
                               encoded_mention, encoded_mention_chars, encoded_labels]
       
       configuration_dataset.append(configuration_entry)
-      print('------------------------')
-      print('entry: {}'.format(entry))
-      print('encoded_entry: {}'.format(encoded_entry))
-      print('encoded_sentence: {}'.format(encoded_sentence))
-      print('context_positions: {}'.format(context_positions))
-      print('sentence_length: {}'.format([sentence_length]))
-      print('encoded_mention: {}'.format(encoded_mention))
-      print('encoded_mention_chars: {}'.format(encoded_mention_chars))
-      print('encoded_labels: {}'.format(encoded_labels))
-      print('------------------------')
+      # print('------------------------')
+      # print('entry: {}'.format(entry))
+      # print('encoded_entry: {}'.format(encoded_entry))
+      # print('encoded_sentence: {}'.format(encoded_sentence))
+      # print('context_positions: {}'.format(context_positions))
+      # print('sentence_length: {}'.format([sentence_length]))
+      # print('encoded_mention: {}'.format(encoded_mention))
+      # print('encoded_mention_chars: {}'.format(encoded_mention_chars))
+      # print('encoded_labels: {}'.format(encoded_labels))
+      # print('------------------------')
 
+      bar.update(1)
 
     return configuration_dataset
 

@@ -2,7 +2,7 @@ from models.toSPaCE import ComposedRegressiveNetwork, ComposedClassificationNetw
 
 
 
-def generate_composed_model(word_embedding_lookup, type_embedding_lookup, config):
+def generate_composed_model(word_embedding_lookup, type_embedding_lookup, foldername, config):
 
 	network_class = config['2-SPACE MODULES CONFIGS']['CLASS']
 
@@ -10,6 +10,7 @@ def generate_composed_model(word_embedding_lookup, type_embedding_lookup, config
 	model = factory[network_class](config = config,
 																	word_lookup = word_embedding_lookup,
 																	type_lookup = type_embedding_lookup,
+																	foldername = foldername
 																	)
 
 

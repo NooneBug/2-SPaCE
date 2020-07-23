@@ -121,6 +121,7 @@ class MentionEncoder(nn.Module):
         self.dropout = nn.Dropout(conf['mention_dropout_size'])
 
     def forward(self, mentions, mention_chars, word_lut):
+        # print('mentions: {}'.format(mentions))
         mention_embeds = word_lut(mentions)             # batch x mention_length x emb_size
         weighted_avg_mentions, _ = self.attentive_weighted_average(mention_embeds)
         char_embed = self.char_encoder(mention_chars)
